@@ -1,0 +1,75 @@
+{
+  "name": "btestlab-rest",
+  "version": "0.1.0",
+  "private": true,
+  "description": "REST API to manage laboratoty analysis results provided by a blood clinic.",
+  "author": "a1black",
+  "license": "MIT",
+  "keywords": [
+    "btestlab",
+    "service",
+    "restful",
+    "express",
+    "mongo"
+  ],
+  "repository": "github:a1black/btestlab-rest",
+  "homepage": "https://github.com/a1black/btestlab-rest#readme",
+  "bugs": {
+    "url": "https://github.com/a1black/btestlab-rest/issues"
+  },
+  "main": "index.js",
+  "files": [
+    "src",
+    "types/index.d.ts"
+  ],
+  "types": "types",
+  "scripts": {
+    "dev": "NODE_ENV=development nodemon --exec npx node -- --inspect=0.0.0.0 index.js | pino-pretty -c -t",
+    "lint": "eslint src --ignore-path .gitignore",
+    "pretty": "prettier --check --ignore-path .gitignore src",
+    "start": "NODE_ENV=production node index.js",
+    "test": "NODE_ENV=test jest"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "os": [
+    "linux"
+  ],
+  "type": "commonjs",
+  "dependencies": {
+    "dotenv": "^16.0.0",
+    "express": "^5.0.0-beta.1",
+    "http-errors": "^2.0.0",
+    "mongodb": "^4.5.0",
+    "pino": "^7.10.0",
+    "pino-http": "^6.6.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.13",
+    "@types/jest": "^27.4.1",
+    "@types/pino": "^7.0.5",
+    "eslint": "^8.13.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-jest": "^26.1.4",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^6.0.0",
+    "jest": "^27.5.1",
+    "nodemon": "^2.0.15",
+    "pino-pretty": "^7.6.1",
+    "pre-commit": "^1.2.2",
+    "prettier": "^2.6.2"
+  },
+  "nodemonConfig": {
+    "delay": "2500",
+    "ignore": [
+      "*.test.js"
+    ],
+    "verbose": true,
+    "watch": "src"
+  },
+  "pre-commit": [
+    "pretty",
+    "lint"
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "env": {
+    "es2021": true,
+    "mongo": true,
+    "node": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:node/recommended",
+    "plugin:promise/recommended",
+    "plugin:jest/recommended",
+    "prettier"
+  ],
+  "parserOptions": {
+    "ecmaVersion": 12
+  },
+  "plugins": ["jest", "node", "promise"],
+  "root": true,
+  "rules": {
+    "no-ex-assign": "off",
+    "node/no-unsupported-features/es-syntax": "off"
+  },
+  "settings": {
+    "jest": {
+      "version": 27
+    }
+  }
+}
