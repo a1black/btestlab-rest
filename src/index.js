@@ -12,11 +12,15 @@ const router = require('./routes')
  */
 async function application() {
   const { db: dbconfig, env, host, logLevel, port, ...config } = configuration()
+  const dbclient = await mongodb.MongoClient.connect(dbconfig.uri)
 
-  const [dbclient, dbconnect] = await initDb(dbconfig)
   try {
-    const db = dbconnect()
-    const logger = initLogger(logLevel)
+    const db = dbclient.db(dbconfig.dbname)
+    // @ts-ignore
+    const logger = pino({
+      enabled: logLevel ? true : false,
+      level: logLevel ?? 'error'
+    })
 
     const app = router()
       .enable('strict routing')
@@ -45,31 +49,6 @@ async function application() {
     await dbclient.close(true)
     throw error
   }
-}
-
-/**
- * @param {Configuration['db']} config
- * @returns {Promise<[mongodb.MongoClient, () => mongodb.Db]>}
- */
-async function initDb(config) {
-  const { dbname, host, port, ...options } = config
-  const client = await mongodb.MongoClient.connect(
-    `mongodb://${host}:${port}`,
-    options
-  )
-
-  return [client, () => client.db(dbname)]
-}
-
-/**
- * @param {string} [level=error] Logging level.
- */
-function initLogger(level) {
-  // @ts-ignore
-  return pino({
-    enabled: level ? true : false,
-    level: level ?? 'error'
-  })
 }
 
 module.exports = application

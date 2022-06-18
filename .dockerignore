@@ -1,0 +1,5 @@
+*
+!bin
+!private
+!src
+!package*.json

@@ -1,6 +1,6 @@
 'use strict'
 
-const bootstrap = require('./src')
+const bootstrap = require('../src')
 
 async function start() {
   const [, listen] = await bootstrap()

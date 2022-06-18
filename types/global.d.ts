@@ -19,21 +19,16 @@ declare global {
       adminKey: string;
       algorithm: jwt.Algorithm;
       issuer: string;
-      secret: string;
+      secret: Buffer;
       ttl: number;
     };
     db: {
       dbname: string;
-      host: string;
-      port: number;
-    } & mongodb.MongoClientOptions;
+      uri: string;
+    };
     env: string;
     host: string;
-    logLevel: string;
-    passwd: {
-      hashSize: number;
-      secret: string;
-    };
+    logLevel?: string;
     port: number;
     validation: {
       employee: {

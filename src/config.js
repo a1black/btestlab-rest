@@ -3,6 +3,7 @@
 const Joi = require('joi')
 const dotenv = require('dotenv')
 const path = require('path')
+const { Buffer } = require('buffer')
 
 const { ConstantEnum } = require('./globals')
 
@@ -17,23 +18,13 @@ const CONFIG = {
   accessToken: {
     adminKey: 'admin',
     algorithm: 'HS256',
-    issuer: process.env.TOKEN_ISSUER,
-    secret: process.env.TOKEN_KEY,
+    issuer: 'https://voib2lab.ru',
+    secret: process.env.JWT_SECRET,
     ttl: 24 * 3600
   },
   db: {
-    auth: {
-      username: process.env.MONGODB_USERNAME,
-      password: process.env.MONGODB_PASSWORD
-    },
-    authSource: 'admin',
     dbname: 'exam_journal',
-    host: process.env.MONGODB_SERVER,
-    port: process.env.MONGODB_PORT
-  },
-  passwd: {
-    hashSize: 64,
-    secret: process.env.PASSWD_KEY
+    uri: process.env.MONGODB_URI
   },
   validation: {
     employee: {
@@ -50,39 +41,41 @@ const CONFIG = {
  */
 function configValidationSchema() {
   return Joi.object({
-    host: Joi.string().empty('').hostname().default('0.0.0.0'),
-    port: Joi.number().empty(0).port().default(80),
-    env: Joi.string().empty('').default('production').optional(),
-    logLevel: Joi.string()
-      .empty('')
-      .lowercase()
-      .allow('error', 'warn', 'info', 'debug')
-      .optional(),
+    host: Joi.string().ip({ cidr: 'forbidden' }).default('0.0.0.0').optional(),
+    port: Joi.number().port().default(80).optional(),
+    env: Joi.string(),
+    logLevel: Joi.string().allow('error', 'warn', 'info', 'debug').optional(),
     accessToken: Joi.object({
       issuer: Joi.string().uri(),
-      secret: Joi.string(),
+      secret: Joi.string().base64(),
       ttl: Joi.number().integer().positive()
     }),
-    passwd: Joi.object({
-      secret: Joi.string().empty('').base64()
-    }),
     db: Joi.object({
-      auth: Joi.object({
-        username: Joi.string(),
-        password: Joi.string()
-      }),
       dbname: Joi.string(),
-      host: Joi.string().hostname(),
-      port: Joi.number().empty(0).port()
+      uri: Joi.string().uri({ scheme: 'mongodb' })
     })
-  }).prefs({ allowUnknown: true, noDefaults: false, presence: 'required' })
+  })
 }
 
 /**
  * @returns {Configuration} Verified configuration object.
  */
 function load() {
-  return Joi.attempt(CONFIG, configValidationSchema(), { abortEarly: false })
+  const { error, value } = configValidationSchema().validate(CONFIG, {
+    abortEarly: false,
+    allowUnknown: true,
+    presence: 'required'
+  })
+  if (error) {
+    throw error
+  } else {
+    value['accessToken']['secret'] = Buffer.from(
+      value['accessToken']['secret'],
+      'base64'
+    )
+  }
+
+  return value
 }
 
 module.exports = load
