@@ -9,7 +9,7 @@ declare global {
 
   interface ApplicationContext {
     client: mongodb.MongoClient;
-    config: Omit<Configuration, "db" | "env" | "host" | "logLevel" | "port">;
+    config: Omit<Configuration, "db" | "server">;
     db: mongodb.Db;
     logger: pino.Logger;
   }
@@ -19,24 +19,27 @@ declare global {
       adminKey: string;
       algorithm: jwt.Algorithm;
       issuer: string;
-      secret: Buffer;
+      secret: string;
       ttl: number;
     };
     db: {
       dbname: string;
       uri: string;
     };
-    env: string;
-    host: string;
-    logLevel?: string;
-    port: number;
-    validation: {
-      employee: {
-        password: {
-          maxLength: number;
-          minLength: number;
-        };
+    genops: {
+      employeeCode: {
+        length: number;
+        prefix: string;
       };
+    };
+    input: {
+      employee: any;
+    };
+    server: {
+      env: string;
+      host?: string;
+      logLevel?: string;
+      port?: number;
     };
   }
 
@@ -62,10 +65,6 @@ declare global {
     interface CollectionNameEnum extends Iterable<string> {
       EMPLOYEE: string;
     }
-
-    interface ConstantEnum extends Iterable<any> {
-      PASSWORD_MIN_LENGTH: number;
-    }
   }
 
   namespace Express {
@@ -73,7 +72,6 @@ declare global {
       context: ApplicationContext;
       globals: {
         CollectionNameEnum: Globals.CollectionNameEnum;
-        ConstantEnum: Globals.ConstantEnum;
       };
       isInternal: () => boolean;
     }

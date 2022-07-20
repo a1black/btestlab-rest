@@ -3,7 +3,7 @@
 const mongodb = require('mongodb')
 const pino = require('pino')
 
-const configuration = require('./config')
+const configuration = require('./configs')
 const globals = require('./globals')
 const router = require('./routes')
 
@@ -11,22 +11,22 @@ const router = require('./routes')
  * @returns {Promise<Application>} Express application instance and startup function.
  */
 async function application() {
-  const { db: dbconfig, env, host, logLevel, port, ...config } = configuration()
-  const dbclient = await mongodb.MongoClient.connect(dbconfig.uri)
+  const { db: dbconf, server: serverconf, ...config } = await configuration()
+  const dbclient = await mongodb.MongoClient.connect(dbconf.uri)
 
   try {
-    const db = dbclient.db(dbconfig.dbname)
+    const db = dbclient.db(dbconf.dbname)
     // @ts-ignore
     const logger = pino({
-      enabled: logLevel ? true : false,
-      level: logLevel ?? 'error'
+      enabled: serverconf.logLevel ? true : false,
+      level: serverconf.logLevel ?? 'error'
     })
 
     const app = router()
       .enable('strict routing')
       .enable('trust proxy')
       .disable('x-powered-by')
-      .set('env', env)
+      .set('env', serverconf.env ?? 'production')
 
     app.use((req, _, next) => {
       // Add application's global state to the processed request.
@@ -44,7 +44,7 @@ async function application() {
       next()
     })
 
-    return [app, () => app.listen(port, host)]
+    return [app, () => app.listen(serverconf.port, serverconf.host)]
   } catch (error) {
     await dbclient.close(true)
     throw error

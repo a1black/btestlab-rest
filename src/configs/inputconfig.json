@@ -1,0 +1,11 @@
+{
+  "employee": {
+    "name": {
+      "maxLength": 256
+    },
+    "password": {
+      "maxLength": 32,
+      "minLength": 6
+    }
+  }
+}

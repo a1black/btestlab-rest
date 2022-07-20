@@ -1,0 +1,23 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 80,
+    "logLevel": "error"
+  },
+  "accessToken": {
+    "adminKey": "admin",
+    "algorithm": "HS256",
+    "issuer": "https://voib2lab.ru",
+    "ttl": 86400
+  },
+  "db": {
+    "dbname": "exam_journal",
+    "uri": "mongodb://mongodb:27017"
+  },
+  "genops": {
+    "employeeCode": {
+      "length": 8,
+      "prefix": "34"
+    }
+  }
+}
