@@ -2,9 +2,9 @@
 
 const mongodb = require('mongodb')
 const pino = require('pino')
+const objectGet = require('lodash.get')
 
 const configuration = require('./configs')
-const globals = require('./globals')
 const router = require('./routes')
 
 /**
@@ -12,39 +12,36 @@ const router = require('./routes')
  */
 async function application() {
   const { db: dbconf, server: serverconf, ...config } = await configuration()
+  const { env = 'production', host, logLevel, port } = serverconf ?? {}
   const dbclient = await mongodb.MongoClient.connect(dbconf.uri)
 
   try {
     const db = dbclient.db(dbconf.dbname)
     // @ts-ignore
     const logger = pino({
-      enabled: serverconf.logLevel ? true : false,
-      level: serverconf.logLevel ?? 'error'
+      enabled: logLevel ? true : false,
+      level: logLevel ?? 'error'
     })
 
     const app = router()
       .enable('strict routing')
       .enable('trust proxy')
       .disable('x-powered-by')
-      .set('env', serverconf.env ?? 'production')
+      .set('env', env)
 
     app.use((req, _, next) => {
-      // Add application's global state to the processed request.
-      req.context = {
-        client: dbclient,
-        config,
-        db,
-        logger
-      }
-      // Application global constants.
-      req.globals = globals
-      // Extend request with application specific methods.a
+      req.context = { client: dbclient, db, logger }
+
+      req.config = (path, _default) => objectGet(config, path, _default)
       req.isInternal = () => req.get('X-Internal-Addr') === '1'
 
       next()
     })
 
-    return [app, () => app.listen(serverconf.port, serverconf.host)]
+    return [
+      app,
+      () => (host && port ? app.listen(port, host) : app.listen(port))
+    ]
   } catch (error) {
     await dbclient.close(true)
     throw error

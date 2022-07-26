@@ -1,20 +1,48 @@
 'use strict'
 
-const Joi = require('joi')
 const dotenv = require('dotenv')
 const fs = require('fs/promises')
 const path = require('path')
+
+/** @type {import('joi')} */
+const Joi = require('joi').extend(joi => ({
+  type: 'regex',
+  base: joi.any(),
+  messages: {
+    'regex.base': '{{#label}} must be regex string or a tuple [regex, flags]',
+    'regex.empty': '{{#label}} is not allowed to be empty',
+    'regex.invalid': '{{#label}} must be valid regular expression'
+  },
+  /** @param {string|[string, string?]} value */
+  validate(value, { error }) {
+    try {
+      value = typeof value === 'string' ? [value] : value
+      if (!Array.isArray(value) || value.some(v => typeof v !== 'string')) {
+        return { errors: error('regex.base') }
+      } else if (value[0].trim() === '') {
+        return { errors: error('regex.empty') }
+      } else {
+        return { value: new RegExp(...value) }
+      }
+    } catch (err) {
+      return { errors: error('regex.invalid') }
+    }
+  }
+}))
 
 const DB_SCHEMA = Joi.object({
   dbname: Joi.string(),
   uri: Joi.string().uri({ scheme: 'mongodb' })
 })
+const GENERAL_SCHEMA = Joi.object({
+  // @ts-ignore
+  employeeNameCapitalize: Joi.regex(),
+  passwdHashSize: Joi.number().positive().min(32)
+})
 const GENOPS_SCHEMA = Joi.object({
-  employeeCode: Joi.object({
-    length: Joi.number()
-      .positive()
-      .greater(Joi.ref('prefix', { adjust: value => value.length })),
-    prefix: Joi.string().pattern(/^\d+$/)
+  employee: Joi.object({
+    codeLength: Joi.number().positive().min(4).max(10),
+    codePrefix: Joi.number().positive()
   })
 })
 const JWT_SCHEMA = Joi.object({
@@ -28,7 +56,7 @@ const SERVER_SCHEMA = Joi.object({
   env: Joi.string(),
   host: Joi.string().ip({ cidr: 'forbidden' }),
   port: Joi.number().port(),
-  logLevel: Joi.string().allow('error', 'warn', 'info', 'debug')
+  logLevel: Joi.string().empty('').allow('error', 'warn', 'info', 'debug')
 })
 
 /** @type {() => Promise<string|undefined>} */
@@ -37,11 +65,13 @@ const readJwtKey = () =>
     .readFile(path.resolve(__dirname, '..', '..', 'private', 'JWT_SECRET.key'))
     .then(data => data.toString('utf8'))
     .catch(() => undefined)
-/** @type {(value: Dict, schema: Joi.ObjectSchema) => Dict} */
+/** @type {(value: Dict, schema: import('joi').ObjectSchema) => Dict} */
 const validateSection = (value, schema) =>
   Joi.attempt(value, schema, { abortEarly: false, allowUnknown: true })
 /** @type {(value: Dict) => Dict} */
 const validateDb = value => validateSection(value, DB_SCHEMA)
+/** @type {(value: Dict) => Dict} */
+const validateGeneral = value => validateSection(value, GENERAL_SCHEMA)
 /** @type {(value: Dict) => Dict} */
 const validateGenops = value => validateSection(value, GENOPS_SCHEMA)
 /** @type {(value: Dict) => Dict} */
@@ -61,6 +91,7 @@ async function loadApplicationConfig() {
     const schema = Joi.object({
       accessToken: JWT_SCHEMA.prefs({ presence: 'required' }),
       db: DB_SCHEMA.prefs({ presence: 'required' }),
+      general: GENERAL_SCHEMA.prefs({ presence: 'required' }),
       genops: GENOPS_SCHEMA.prefs({ presence: 'required' }),
       server: SERVER_SCHEMA
     })
@@ -75,6 +106,7 @@ async function loadApplicationConfig() {
           validateDb(config.db),
           validateDb({ uri: process.env.MONGODB_URI })
         ),
+        general: validateGeneral(config.general),
         genops: validateGenops(config.genops),
         server: Object.assign(
           validateServer(config.server ?? {}),
@@ -98,15 +130,32 @@ async function loadApplicationConfig() {
 /**
  * @returns {Promise<Dict>} User input validation options.
  */
-function loadInputValidationConfig() {
-  return fs
-    .readFile(path.resolve(__dirname, 'inputconfig.json'), 'utf8')
-    .then(JSON.parse)
-    .catch(error => {
-      throw new Error('Invalid input validation configuration', {
-        cause: error
-      })
-    })
+async function loadInputValidationConfig() {
+  try {
+    const config = await fs
+      .readFile(path.resolve(__dirname, 'inputconfig.json'), 'utf8')
+      .then(JSON.parse)
+
+    return Joi.attempt(
+      config,
+      Joi.object({
+        employee: Joi.object({
+          name: Joi.object({
+            // @ts-ignore
+            pattern: Joi.regex().required()
+          }),
+          password: Joi.object({
+            // @ts-ignore
+            pattern: Joi.regex().required()
+          })
+        })
+      }),
+      { abortEarly: false, allowUnknown: true }
+    )
+  } catch (err) {
+    // @ts-ignore
+    throw new Error('Invalid input validation configuration', { cause: err })
+  }
 }
 
 /**

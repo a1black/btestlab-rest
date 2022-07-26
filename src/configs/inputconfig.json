@@ -1,11 +1,16 @@
 {
   "employee": {
     "name": {
-      "maxLength": 256
+      "maxLength": 256,
+      "pattern": [
+        "^\\p{Script=Cyrillic}(?:[\\p{Script=Cyrillic}ivx]*(?:(?<=[\\p{Script=Cyrillic}ivx])[-_,.' ](?=[\\p{Script=Cyrillic}ivx]))?)*$",
+        "ui"
+      ]
     },
     "password": {
       "maxLength": 32,
-      "minLength": 6
+      "minLength": 6,
+      "pattern": "^[\\w!#$%&?@^=+-]+$"
     }
   }
 }

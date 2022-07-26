@@ -14,10 +14,14 @@
     "dbname": "exam_journal",
     "uri": "mongodb://mongodb:27017"
   },
+  "general": {
+    "employeeNameCapitalize": ["(?<=^|\\P{L})\\p{L}|[ivx]", "gu"],
+    "passwdHashSize": 32
+  },
   "genops": {
-    "employeeCode": {
-      "length": 8,
-      "prefix": "34"
+    "employee": {
+      "codeLength": 4,
+      "codePrefix": 3400
     }
   }
 }
