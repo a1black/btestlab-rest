@@ -139,6 +139,9 @@ async function loadInputValidationConfig() {
     return Joi.attempt(
       config,
       Joi.object({
+        contingent: Joi.object({
+          code: Joi.object({ pattern: Joi.regex().required() })
+        }),
         employee: Joi.object({
           name: Joi.object({
             // @ts-ignore

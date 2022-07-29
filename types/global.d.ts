@@ -72,6 +72,7 @@ declare global {
       };
     };
     input: {
+      contingent: any;
       employee: any;
     };
     server: {
@@ -91,6 +92,11 @@ declare global {
       ctime: Date;
       /** Document modification date. */
       mtime?: Date;
+    }
+
+    interface Contingent extends BaseDocument {
+      code: string;
+      desc?: string;
     }
 
     interface Employee extends BaseDocument {

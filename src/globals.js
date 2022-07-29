@@ -9,6 +9,7 @@ class Enum {
 }
 
 class CollectionNameEnum extends Enum {
+  static CONTINGENT = 'contingent'
   static EMPLOYEE = 'employee'
 }
 

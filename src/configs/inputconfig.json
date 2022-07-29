@@ -1,4 +1,13 @@
 {
+  "contingent": {
+    "code": {
+      "maxLength": 10,
+      "pattern": ["^[0-9\\p{L}]+$", "u"]
+    },
+    "desc": {
+      "maxLength": 256
+    }
+  },
   "employee": {
     "name": {
       "maxLength": 256,
