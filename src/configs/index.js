@@ -43,6 +43,10 @@ const GENOPS_SCHEMA = Joi.object({
   employee: Joi.object({
     codeLength: Joi.number().positive().min(4).max(10),
     codePrefix: Joi.number().positive()
+  }),
+  lpu: Joi.object({
+    idLength: Joi.number().positive().min(4).max(10),
+    idPrefix: Joi.number().positive()
   })
 })
 const JWT_SCHEMA = Joi.object({
@@ -151,6 +155,9 @@ async function loadInputValidationConfig() {
             // @ts-ignore
             pattern: Joi.regex().required()
           })
+        }),
+        lpu: Joi.object({
+          opf: Joi.object({ pattern: Joi.regex().required() })
         })
       }),
       { abortEarly: false, allowUnknown: true }

@@ -21,5 +21,17 @@
       "minLength": 6,
       "pattern": "^[\\w!#$%&?@^=+-]+$"
     }
+  },
+  "lpu": {
+    "abbr": {
+      "maxLength": 128
+    },
+    "name": {
+      "maxLength": 256
+    },
+    "opf": {
+      "maxLength": 32,
+      "pattern": ["^\\p{Script=Cyrillic}+(?:\\s\\p{Script=Cyrillic}+)*$", "u"]
+    }
   }
 }

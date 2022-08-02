@@ -22,6 +22,10 @@
     "employee": {
       "codeLength": 4,
       "codePrefix": 3400
+    },
+    "lpu": {
+      "idLength": 6,
+      "idPrefix": 3400
     }
   }
 }

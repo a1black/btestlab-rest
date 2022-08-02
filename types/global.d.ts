@@ -70,10 +70,15 @@ declare global {
         codeLength: number;
         codePrefix: number;
       };
+      lpu: {
+        idLength: number;
+        idPrefix: number;
+      };
     };
     input: {
       contingent: any;
       employee: any;
+      lpu: any;
     };
     server: {
       env: string;
@@ -108,6 +113,16 @@ declare global {
       middlename: string;
       password?: string;
       sex: string;
+    }
+
+    interface Lpu extends BaseDocument {
+      _id: number;
+      abbr: string;
+      code: number;
+      dep?: number;
+      name: string;
+      opf: string;
+      xtime?: Date;
     }
   }
 
