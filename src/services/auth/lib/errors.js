@@ -2,31 +2,16 @@
 
 class AuthenticationError extends Error {
   /**
-   * @param {Array<[string, string]>} details List of validation errors.
+   * @param {string | string[]} credential Name of authentication parameter (login, password, token, etc).
+   * @param {string} [message] Error message.
    */
-  constructor(details) {
-    super()
-    this.expose = true
-    this.name = this.constructor.name
-    this.status = this.statusCode = 400
-    this.details = details
-  }
-}
-
-class InvalidLoginError extends AuthenticationError {
-  constructor() {
-    super([['login', 'error.auth.login']])
-  }
-}
-
-class InvalidPasswordError extends AuthenticationError {
-  constructor() {
-    super([['password', 'error.auth.password']])
+  constructor(credential, message) {
+    super(message)
+    /** @type {string | string[]} Name of authentication parameter (login, password, token, etc). */
+    this.credential = credential
   }
 }
 
 module.exports = {
-  AuthenticationError,
-  InvalidLoginError,
-  InvalidPasswordError
+  AuthenticationError
 }

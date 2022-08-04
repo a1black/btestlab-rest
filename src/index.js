@@ -6,6 +6,10 @@ const objectGet = require('lodash.get')
 
 const configuration = require('./configs')
 const router = require('./routes')
+const {
+  generateAccessToken,
+  httpResponseAliases
+} = require('./libs/http_service_helpers')
 
 /**
  * @returns {Promise<Application>} Express application instance and startup function.
@@ -29,11 +33,15 @@ async function application() {
       .disable('x-powered-by')
       .set('env', env)
 
-    app.use((req, _, next) => {
-      req.context = { client: dbclient, db, logger }
-
+    app.use((req, res, next) => {
+      // Extend HTTP Request object
       req.config = (path, _default) => objectGet(config, path, _default)
+      req.context = { client: dbclient, db, logger }
+      req.generateAccessToken = payload =>
+        generateAccessToken(payload, config.accessToken)
       req.isInternal = () => req.get('X-Internal-Addr') === '1'
+      // Extend HTTP Response object
+      httpResponseAliases(res)
 
       next()
     })

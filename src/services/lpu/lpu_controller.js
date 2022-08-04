@@ -6,26 +6,25 @@
  */
 
 const createHttpError = require('http-errors')
+const { attempt: joiValidate } = require('joi')
 
-const lpuProvider = require('./lib/lpu_db_provider')
+const lpuDataAccessor = require('./lib/lpu_data_accessor')
 const lpuSchema = require('./lib/lpu_schema')
 const { formatLpuDoc } = require('./lib/lpu_helper_functions')
 
-/** @param {Request} req */
-const lpuCollection = req => lpuProvider(req.context.db)
-/** @type {(req: Request) => import('mongodb').InferIdType<Collection.Lpu>} */
+/** @param {Request} req HTTP request object. */
+const dataAccessor = req => lpuDataAccessor(req.context.db)
+/** @type {(req: Request) => Collection.InferIdType<Collection.Lpu>} */
 // @ts-ignore
 const idParam = req => req.params.id
 
-/** @type {RequestHandler} Creates new LPU document. */
+/** @type {RequestHandler} Insert new document in the database. */
 async function createLpu(req, res) {
-  const doc = lpuSchema.validate(
-    lpuSchema.full(req.config('input.lpu')),
-    req.body
-  )
+  const doc = joiValidate(req.body, lpuSchema.base(req.config('input.lpu')))
+  const collection = dataAccessor(req)
 
   try {
-    const id = await lpuCollection(req).create(doc, req.config('genops.lpu'))
+    const id = await collection.create(doc, req.config('genops.lpuId'))
 
     if (!id) {
       throw createHttpError(500, 'Try Later')
@@ -33,15 +32,10 @@ async function createLpu(req, res) {
       res.json({ id })
     }
   } catch (error) {
-    // TODO: Response error must provide a way to restore deleted document.
-    // @ts-ignore
-    if (error.code === 11000 && error.keyPattern?.code) {
-      const deletedDoc = await lpuCollection(req).readDeleted(doc)
+    if (collection.isDuplicateError(error, 'code')) {
+      const deletedDoc = await collection.readDeleted(doc)
       if (deletedDoc) {
-        // @ts-ignore
-        error.keyPattern = { _id: 1 }
-        // @ts-ignore
-        error.keyValue = { _id: deletedDoc._id }
+        // TODO: Response error must provide a way to restore deleted document.
       }
 
       throw error
@@ -49,52 +43,52 @@ async function createLpu(req, res) {
   }
 }
 
-/** @type {RequestHandler} Flags LPU document as inactive. */
+/** @type {RequestHandler} Flags requested document as inactive. */
 async function deactivateLpu(req, res) {
-  const success = await lpuCollection(req).activate(idParam(req), false)
+  const success = await dataAccessor(req).activate(idParam(req), false)
 
   if (!success) {
     throw createHttpError(404)
   } else {
-    res.json({ ok: true })
+    res.sendOk()
   }
 }
 
-/** @type {RequestHandler} Flags LPU document as deleted. */
+/** @type {RequestHandler} Flags requested document as deleted. */
 async function deleteLpu(req, res) {
-  const success = await lpuCollection(req).remove(idParam(req))
+  const success = await dataAccessor(req).remove(idParam(req))
 
   if (!success) {
     throw createHttpError(404)
   } else {
-    res.json({ ok: true })
+    res.sendOk()
   }
 }
 
-/** @type {RequestHandler} Returns list of existing (non-deleted) LPU documents. */
+/** @type {RequestHandler} Returns list of existing (non-deleted) documents. */
 async function listLpus(req, res) {
   const list = []
-  for await (const doc of lpuCollection(req).list()) {
+  for await (const doc of dataAccessor(req).list()) {
     list.push(formatLpuDoc(doc))
   }
 
   res.json({ list })
 }
 
-/** @type {RequestHandler} Removes inactivity flag from LPU document. */
+/** @type {RequestHandler} Removes inactivity flag from a document. */
 async function reactivateLpu(req, res) {
-  const success = await lpuCollection(req).activate(idParam(req), true)
+  const success = await dataAccessor(req).activate(idParam(req), true)
 
   if (!success) {
     throw createHttpError(404)
   } else {
-    res.json({ ok: true })
+    res.sendOk()
   }
 }
 
-/** @type {RequestHandler} Returns data of existing (non-deleted) LPU document. */
+/** @type {RequestHandler} Returns data of an existing (non-deleted) document. */
 async function readLpu(req, res) {
-  const doc = await lpuCollection(req).read(idParam(req))
+  const doc = await dataAccessor(req).read(idParam(req))
 
   if (!doc) {
     throw createHttpError(404)
@@ -103,30 +97,27 @@ async function readLpu(req, res) {
   }
 }
 
-/** @type {RequestHandler} Restores deleted LPU document to its previous state. */
+/** @type {RequestHandler} Restores deleted document to its previous state. */
 async function restoreLpu(req, res) {
-  const success = await lpuCollection(req).restore(idParam(req))
+  const success = await dataAccessor(req).restore(idParam(req))
 
   if (!success) {
     throw createHttpError(404)
   } else {
-    res.json({ ok: true })
+    res.sendOk()
   }
 }
 
-/** @type {RequestHandler} Replaces data of existing LPU document with recieved one. */
+/** @type {RequestHandler} Replaces data of an existing document with recieved one. */
 async function updateLpu(req, res) {
-  const doc = lpuSchema.validate(
-    lpuSchema.full(req.config('input.lpu')),
-    req.body
-  )
+  const doc = joiValidate(req.body, lpuSchema.base(req.config('input.lpu')))
 
-  const success = await lpuCollection(req).replace(idParam(req), doc)
+  const success = await dataAccessor(req).replace(idParam(req), doc)
 
   if (!success) {
     throw createHttpError(404)
   } else {
-    res.json({ ok: true })
+    res.sendOk()
   }
 }
 

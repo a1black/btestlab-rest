@@ -1,29 +1,26 @@
 'use strict'
 
 const Joi = require('joi')
-const createError = require('http-errors')
+const createHttpError = require('http-errors')
 const express = require('express')
 
-const EmployeeController = require('./employee_controller')
+const employeeController = require('./employee_controller')
 
-function init() {
-  return express
+module.exports = () =>
+  express
     .Router()
     .param('id', (req, res, next, id) => {
       const { error, value } = Joi.number()
         .integer()
         .positive()
-        .max(Number.MIN_SAFE_INTEGER)
+        .required()
         .validate(id, { convert: true })
       req.params.id = value
-      next(error ? createError(404) : undefined)
+      next(error ? createHttpError(404) : undefined)
     })
-    .delete('/:id', EmployeeController.deleteEmployee)
-    .get('/:id', EmployeeController.readEmployee)
-    .get('/', EmployeeController.getEmployeeList)
-    .post('/:id/password', EmployeeController.updateEmployeePassword)
-    .post('/', EmployeeController.createEmployee)
-    .put('/:id', EmployeeController.replaceEmployee)
-}
-
-module.exports = init
+    .delete('/:id', employeeController.deleteEmployee)
+    .get('/:id', employeeController.readEmployee)
+    .get('/', employeeController.listEmployees)
+    .post('/', employeeController.createEmployee)
+    .put('/:id/password', employeeController.updateEmployeePassword)
+    .put('/:id', employeeController.updateEmployee)

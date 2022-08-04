@@ -2,67 +2,49 @@
 
 /**
  * @typedef {Object} ContingentSchemaOptions
- * @property {Object} code Validation schema options for contingent code value.
+ * @property {Object} code Unique code validation options.
  * @property {number} code.maxLength Maximum length of input value.
  * @property {RegExp} code.pattern Regular expression to match input value.
- * @property {Object} desc Validation schema options for contingent description text.
+ * @property {Object} desc Description text validation options.
  * @property {number} desc.maxLength Maximum length of input value.
  */
 
 const Joi = require('joi')
 
-const emptySchema = () => Joi.string().allow('').pattern(/^\s+$/)
-/** @type {(options: ContingentSchemaOptions['code']) => Joi.StringSchema} */
-const codeSchema = options =>
-  Joi.string()
-    .empty(emptySchema())
-    .trim()
-    .lowercase()
-    .max(options.maxLength)
-    .pattern(options.pattern)
-/** @type {(options: ContingentSchemaOptions['desc']) => Joi.StringSchema} */
-const descSchema = options =>
-  Joi.string().empty(emptySchema()).trim().max(options.maxLength)
-/** @type {() => Joi.ValidationOptions} */
-const validationOptions = () => ({
-  abortEarly: false,
-  convert: true,
-  errors: { render: false },
-  skipFunctions: true,
-  stripUnknown: true
-})
+const {
+  baseValidationOptions,
+  blankStringSchema,
+  collapseSpacesCustomRule
+} = require('../../../libs/joi_schema_helpers')
 
 /**
  * @param {ContingentSchemaOptions} options Validation options.
- * @returns {Joi.ObjectSchema} Contingent document validation schema.
+ * @returns {Joi.ObjectSchema} A schema object to validate input data for update operation.
  */
 function contingentSchema(options) {
   return Joi.object({
-    code: codeSchema(options.code).required(),
-    desc: descSchema(options.desc).optional()
-  }).prefs(validationOptions())
-}
-
-/**
- * @param {ContingentSchemaOptions} options Validation options.
- * @returns {Joi.ObjectSchema} Validation schema for contingent update object.
- */
-function contingentUpdateSchema(options) {
-  return Joi.object({
-    desc: descSchema(options.desc).optional()
-  }).prefs(validationOptions())
+    desc: Joi.string()
+      .empty(blankStringSchema())
+      .trim()
+      .custom(collapseSpacesCustomRule)
+      .max(options.desc.maxLength)
+      .optional()
+  })
+    .required()
+    .prefs(baseValidationOptions())
 }
 
 module.exports = {
-  base: contingentUpdateSchema,
-  full: contingentSchema,
-  /** @type {(schema: Joi.Schema, data?: any) => any} */
-  validate: (schema, data) => {
-    const { error, value } = schema.validate(data ?? {})
-    if (error) {
-      throw error
-    } else {
-      return value
-    }
-  }
+  base: contingentSchema,
+  /** @type {(options: ContingentSchemaOptions) => Joi.ObjectSchema} Returns a schema object to validate input data for insert operation. */
+  full: options =>
+    contingentSchema(options).append({
+      code: Joi.string()
+        .empty(blankStringSchema())
+        .trim()
+        .lowercase()
+        .max(options.code.maxLength)
+        .pattern(options.code.pattern)
+        .required()
+    })
 }

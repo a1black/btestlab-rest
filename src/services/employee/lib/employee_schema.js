@@ -2,82 +2,83 @@
 
 /**
  * @typedef {Object} EmployeeSchemaOptions
- * @property {Object} name Employee name validation options.
+ * @property {Object} name Name validation options.
  * @property {number} name.maxLength Maximum length of input value.
- * @property {RegExp} name.pattern Regular expression to input value.
- * @property {Object} password Employee password validation options.
+ * @property {RegExp} name.pattern Regular expression to match input value.
+ * @property {Object} password Password validation options.
  * @property {number} password.maxLength Maximum length of input value.
  * @property {number} password.minLength Minimum length of input value.
- * @property {RegExp} password.pattern Allowed character set.
+ * @property {RegExp} password.pattern Regular expression to match input value.
  */
 
 const Joi = require('joi')
 
-const emptySchema = () => Joi.string().allow('').pattern(/^\s+$/)
-/** @type {(options: EmployeeSchemaOptions['name']) => Joi.StringSchema} */
-const employeeName = options =>
-  Joi.string()
-    .empty(emptySchema())
+const { dateSimpleISOFormat } = require('./employee_helper_functions')
+const {
+  baseValidationOptions,
+  blankStringSchema
+} = require('../../../libs/joi_schema_helpers')
+
+/**
+ * @param {EmployeeSchemaOptions["name"]} options Validation options.
+ * @returns {Joi.StringSchema} A schema object to validate human name.
+ */
+function employeeNameSchema(options) {
+  return Joi.string()
+    .empty(blankStringSchema())
+    .normalize()
     .trim()
     .lowercase()
     .max(options.maxLength)
     .pattern(options.pattern)
+}
+
+/**
+ * @param {EmployeeSchemaOptions["password"]} options Validation options.
+ * @returns {Joi.StringSchema} A schema object to validate raw password value.
+ */
+function employeePasswordSchema(options) {
+  return Joi.string()
+    .empty(blankStringSchema())
+    .normalize()
+    .min(options.minLength)
+    .max(options.maxLength)
+    .pattern(options.pattern)
+}
 
 /**
  * @param {EmployeeSchemaOptions} options Validation options.
- * @returns {Joi.ObjectSchema} Employee document validation schema.
+ * @returns {Joi.ObjectSchema} A schema object to validate input data for update operation.
  */
 function employeeSchema(options) {
   return Joi.object({
-    admin: Joi.any().strip(),
+    admin: Joi.any().strip().optional(),
     birthdate: Joi.date()
-      .empty(emptySchema())
+      .empty(blankStringSchema())
       .iso()
-      .custom(value => new Date(value.toISOString().split('T')[0]))
+      .custom(value => new Date(dateSimpleISOFormat(value)))
       .required(),
-    firstname: employeeName(options.name).required(),
-    lastname: employeeName(options.name).required(),
-    middlename: employeeName(options.name).required(),
-    sex: Joi.string().empty(emptySchema()).valid('f', 'm').required()
-  }).prefs({})
-}
-
-/**
- * @param {EmployeeSchemaOptions} options Validation options.
- * @returns {Joi.ObjectSchema} Employee password validation schema.
- */
-function employeePasswordSchema(options) {
-  const { password: passwordOps } = options
-
-  return Joi.object({
-    password: Joi.string()
-      .empty(emptySchema())
-      .min(passwordOps.minLength)
-      .max(passwordOps.maxLength)
-      .pattern(passwordOps.pattern)
+    firstname: employeeNameSchema(options.name).required(),
+    lastname: employeeNameSchema(options.name).required(),
+    middlename: employeeNameSchema(options.name).required(),
+    sex: Joi.string().empty(blankStringSchema()).valid('f', 'm').required()
   })
-}
-
-/** @returns {Joi.ValidationOptions} */
-function validationOptions() {
-  return {
-    abortEarly: false,
-    convert: true,
-    errors: { render: false },
-    skipFunctions: true,
-    stripUnknown: true
-  }
+    .required()
+    .prefs(baseValidationOptions())
 }
 
 module.exports = {
-  /** @type {(options: EmployeeSchemaOptions) => Joi.ObjectSchema} */
-  base: options => employeeSchema(options).prefs(validationOptions()),
-  /** @type {(options: EmployeeSchemaOptions) => Joi.ObjectSchema} */
-  password: options =>
-    employeePasswordSchema(options).prefs(validationOptions()),
+  base: employeeSchema,
   /** @type {(options: EmployeeSchemaOptions) => Joi.ObjectSchema} */
   full: options =>
-    employeeSchema(options)
-      .concat(employeePasswordSchema(options))
-      .prefs(validationOptions())
+    employeeSchema(options).append({
+      password: employeePasswordSchema(options.password).optional()
+    }),
+  /** @type {(options: EmployeeSchemaOptions) => Joi.ObjectSchema} */
+  password: options =>
+    Joi.object({
+      password: employeePasswordSchema(options.password).required()
+    })
+      .required()
+      .prefs(baseValidationOptions())
 }

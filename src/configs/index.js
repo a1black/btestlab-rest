@@ -3,136 +3,140 @@
 const dotenv = require('dotenv')
 const fs = require('fs/promises')
 const path = require('path')
+const { Buffer } = require('buffer')
 
-/** @type {import('joi')} */
-const Joi = require('joi').extend(joi => ({
-  type: 'regex',
-  base: joi.any(),
-  messages: {
-    'regex.base': '{{#label}} must be regex string or a tuple [regex, flags]',
-    'regex.empty': '{{#label}} is not allowed to be empty',
-    'regex.invalid': '{{#label}} must be valid regular expression'
-  },
-  /** @param {string|[string, string?]} value */
-  validate(value, { error }) {
-    try {
-      value = typeof value === 'string' ? [value] : value
-      if (!Array.isArray(value) || value.some(v => typeof v !== 'string')) {
-        return { errors: error('regex.base') }
-      } else if (value[0].trim() === '') {
-        return { errors: error('regex.empty') }
-      } else {
-        return { value: new RegExp(...value) }
-      }
-    } catch (err) {
-      return { errors: error('regex.invalid') }
-    }
-  }
-}))
+const {
+  blankStringSchema,
+  extendJoiWithRegexSchema
+} = require('../libs/joi_schema_helpers')
 
-const DB_SCHEMA = Joi.object({
-  dbname: Joi.string(),
-  uri: Joi.string().uri({ scheme: 'mongodb' })
-})
-const GENERAL_SCHEMA = Joi.object({
-  // @ts-ignore
-  employeeNameCapitalize: Joi.regex(),
-  passwdHashSize: Joi.number().positive().min(32)
-})
-const GENOPS_SCHEMA = Joi.object({
-  employee: Joi.object({
-    codeLength: Joi.number().positive().min(4).max(10),
-    codePrefix: Joi.number().positive()
-  }),
-  lpu: Joi.object({
-    idLength: Joi.number().positive().min(4).max(10),
-    idPrefix: Joi.number().positive()
-  })
-})
-const JWT_SCHEMA = Joi.object({
-  adminKey: Joi.string(),
-  algorithm: Joi.string(),
-  issuer: Joi.string().uri(),
-  secret: Joi.string().base64(),
-  ttl: Joi.number().integer().positive()
-})
-const SERVER_SCHEMA = Joi.object({
-  env: Joi.string(),
-  host: Joi.string().ip({ cidr: 'forbidden' }),
-  port: Joi.number().port(),
-  logLevel: Joi.string().empty('').allow('error', 'warn', 'info', 'debug')
-})
-
-/** @type {() => Promise<string|undefined>} */
-const readJwtKey = () =>
-  fs
-    .readFile(path.resolve(__dirname, '..', '..', 'private', 'JWT_SECRET.key'))
-    .then(data => data.toString('utf8'))
-    .catch(() => undefined)
-/** @type {(value: Dict, schema: import('joi').ObjectSchema) => Dict} */
-const validateSection = (value, schema) =>
-  Joi.attempt(value, schema, { abortEarly: false, allowUnknown: true })
-/** @type {(value: Dict) => Dict} */
-const validateDb = value => validateSection(value, DB_SCHEMA)
-/** @type {(value: Dict) => Dict} */
-const validateGeneral = value => validateSection(value, GENERAL_SCHEMA)
-/** @type {(value: Dict) => Dict} */
-const validateGenops = value => validateSection(value, GENOPS_SCHEMA)
-/** @type {(value: Dict) => Dict} */
-const validateJwt = value => validateSection(value, JWT_SCHEMA)
-/** @type {(value: Dict) => Dict} */
-const validateServer = value => validateSection(value, SERVER_SCHEMA)
+const Joi = extendJoiWithRegexSchema()
+const JoiInteger = () => Joi.number().integer().positive()
+const JoiString = () => Joi.string().empty(blankStringSchema())
 
 /**
- * @returns {Promise<Dict>} Validated configuration object.
+ * @param {string} name Name of configuration section.
+ * @param {import('joi').Schema} schema Joi schema to validate and strip empty values.
+ * @param {any} base Default configuration values.
+ * @param  {...any} configs Configuration objects to validate and merge.
+ * @returns {any} Merged configuration object.
+ */
+function mergeConfigSection(name, schema, base, ...configs) {
+  const /** @type {any[]} */ stripped = []
+  for (const config of configs) {
+    const { error, value } = schema.validate(config, {
+      abortEarly: false,
+      allowUnknown: true
+    })
+
+    if (error) {
+      throw new Error('Invalid configuration section: ' + name, {
+        cause: error
+      })
+    } else {
+      stripped.push(value)
+    }
+  }
+
+  return Object.assign(base, ...stripped)
+}
+
+/**
+ * Reads JsonWebToken secret key from file.
+ * @returns {Promise<string?>} Secret as plain text.
+ */
+function readJwtKey() {
+  return fs
+    .readFile(path.resolve(__dirname, '..', '..', 'private', 'JWT_SECRET.key'))
+    .then(data => data.toString('utf8'))
+    .catch(() => null)
+}
+
+/**
+ * @returns {Promise<Omit<Configuration, 'input'>>} Validated configuration object.
  */
 async function loadApplicationConfig() {
   try {
-    const config = await fs
+    const jsonConfig = await fs
       .readFile(path.resolve(__dirname, 'appconfig.json'), 'utf8')
       .then(JSON.parse)
+    const { db, server, ...config } = jsonConfig
+    // JsonWebToken secret key.
     const jwtSecret = await readJwtKey()
+    if (jwtSecret) {
+      config.accessToken.secret = jwtSecret
+    }
+    // Joi schema object for validation application configuration.
     const schema = Joi.object({
-      accessToken: JWT_SCHEMA.prefs({ presence: 'required' }),
-      db: DB_SCHEMA.prefs({ presence: 'required' }),
-      general: GENERAL_SCHEMA.prefs({ presence: 'required' }),
-      genops: GENOPS_SCHEMA.prefs({ presence: 'required' }),
-      server: SERVER_SCHEMA
+      accessToken: Joi.object({
+        adminKey: JoiString(),
+        algorithm: JoiString(),
+        issuer: JoiString().uri(),
+        secret: JoiString().base64(),
+        ttl: JoiInteger()
+      }),
+      db: Joi.object({
+        dbname: JoiString(),
+        uri: JoiString().uri({ scheme: 'mongodb' })
+      }),
+      general: Joi.object({
+        employeeNameCapitalize: Joi.regex(),
+        passwdHashSize: JoiInteger().min(32)
+      }),
+      genops: Joi.object({
+        employeeId: Joi.object({
+          length: JoiInteger().min(4).max(10),
+          prefix: JoiInteger()
+        }),
+        lpuId: Joi.object({
+          length: JoiInteger().min(4).max(10),
+          prefix: JoiInteger()
+        })
+      }),
+      server: Joi.object({
+        env: JoiString(),
+        host: JoiString().ip({ cidr: 'forbidden' }),
+        port: Joi.number().port(),
+        logLevel: JoiString().allow('error', 'warn', 'info', 'debug').optional()
+      })
     })
 
-    return Joi.attempt(
+    const appconfig = Joi.attempt(
       {
-        accessToken: Object.assign(
-          validateJwt(config.accessToken),
-          validateJwt({ secret: jwtSecret })
-        ),
-        db: Object.assign(
-          validateDb(config.db),
-          validateDb({ uri: process.env.MONGODB_URI })
-        ),
-        general: validateGeneral(config.general),
-        genops: validateGenops(config.genops),
-        server: Object.assign(
-          validateServer(config.server ?? {}),
-          validateServer({
-            env: process.env.NODE_ENV,
-            host: process.env.SERVER_HOST,
-            port: process.env.SERVER_PORT,
-            logLevel: process.env.LOG_LEVEL
-          })
-        )
+        db: mergeConfigSection('db', schema.extract('db'), db, {
+          uri: process.env.MONGODB_URI
+        }),
+        server: mergeConfigSection('server', schema.extract('server'), server, {
+          env: process.env.NODE_ENV,
+          host: process.env.SERVER_HOST,
+          port: process.env.SERVER_PORT,
+          logLevel: process.env.LOG_LEVEL
+        }),
+        ...config
       },
       schema,
-      { abortEarly: false, allowUnknown: true }
+      {
+        abortEarly: false,
+        allowUnknown: true,
+        convert: true,
+        presence: 'required'
+      }
     )
-  } catch (err) {
+
+    const accessTokenSecret = appconfig.accessToken.secret
+    if (typeof accessTokenSecret === 'string') {
+      appconfig.accessToken.secret = Buffer.from(accessTokenSecret, 'base64')
+    }
+
+    return appconfig
+  } catch (error) {
     // @ts-ignore
-    throw new Error('Invalid application configuration', { cause: err })
+    throw new Error('Invalid application configuration', { cause: error })
   }
 }
 
 /**
- * @returns {Promise<Dict>} User input validation options.
+ * @returns {Promise<Configuration['input']>} User input validation options.
  */
 async function loadInputValidationConfig() {
   try {
@@ -147,14 +151,8 @@ async function loadInputValidationConfig() {
           code: Joi.object({ pattern: Joi.regex().required() })
         }),
         employee: Joi.object({
-          name: Joi.object({
-            // @ts-ignore
-            pattern: Joi.regex().required()
-          }),
-          password: Joi.object({
-            // @ts-ignore
-            pattern: Joi.regex().required()
-          })
+          name: Joi.object({ pattern: Joi.regex().required() }),
+          password: Joi.object({ pattern: Joi.regex().required() })
         }),
         lpu: Joi.object({
           opf: Joi.object({ pattern: Joi.regex().required() })
@@ -162,9 +160,9 @@ async function loadInputValidationConfig() {
       }),
       { abortEarly: false, allowUnknown: true }
     )
-  } catch (err) {
+  } catch (error) {
     // @ts-ignore
-    throw new Error('Invalid input validation configuration', { cause: err })
+    throw new Error('Invalid input validation configuration', { cause: error })
   }
 }
 
@@ -176,7 +174,6 @@ async function load() {
   const inputconfig = await loadInputValidationConfig()
 
   return {
-    // @ts-ignore
     input: inputconfig,
     ...appconfig
   }
@@ -185,7 +182,7 @@ async function load() {
 module.exports = (() => {
   try {
     dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') })
-  } catch (err) {
+  } catch (error) {
     // Ignore missing dotenv file
   }
 

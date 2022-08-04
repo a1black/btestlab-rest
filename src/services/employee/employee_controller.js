@@ -1,141 +1,138 @@
 'use strict'
 
-/** @typedef {import('express').RequestHandler} RequestHandler */
+/**
+ * @typedef {import("express").Request} Request
+ * @typedef {import("express").RequestHandler} RequestHandler
+ */
 
-const createError = require('http-errors')
+const createHttpError = require('http-errors')
+const { attempt: joiValidate } = require('joi')
 
-const employeeProvider = require('./lib/employee_db_provider')
+const employeeDataAccessor = require('./lib/employee_data_accessor')
 const employeeSchema = require('./lib/employee_schema')
 const {
   formatEmployeeDoc,
   hashPassword
 } = require('./lib/employee_helper_functions')
 
-/** @type {RequestHandler} Processes POST request to create new application user. */
-async function createEmployee(req, res) {
-  const { error, value: doc } = employeeSchema
-    .full(req.config('input.employee'))
-    .validate(req.body ?? {})
+/** @param {Request} req HTTP request object. */
+const dataAccessor = req => employeeDataAccessor(req.context.db)
+/** @type {(req: Request) => Collection.InferIdType<Collection.Employee>} */
+// @ts-ignore
+const idParam = req => req.params.code
 
-  if (error) {
-    throw error
-  } else if (doc.password) {
-    doc.password = await hashPassword(
-      doc.password,
-      req.config('general.passwdHashSize')
-    )
+/** @type {RequestHandler} Insert new document in the database. */
+async function createEmployee(req, res) {
+  /** @type {Collection.OmitBase<Collection.Employee, "admin">} */
+  const doc = joiValidate(
+    req.body,
+    employeeSchema.full(req.config('input.employee'))
+  )
+
+  if (doc.password) {
+    doc.password = await hashPassword(doc.password, {
+      hashSize: req.config('general.passwdHashSize')
+    })
   }
 
-  const id = await employeeProvider(req.context.db).create(
+  const id = await dataAccessor(req).create(
     doc,
-    req.config('genops.employee')
+    req.config('genops.employeeId')
   )
 
   if (!id) {
-    throw createError(500, 'Try Later')
+    throw createHttpError(500, 'Try Later')
   } else {
     res.json({ id })
   }
 }
 
-/** @type {RequestHandler} Processes DELETE request to remove employee document from the database. */
+/** @type {RequestHandler} Removes requested document from the database. */
 async function deleteEmployee(req, res) {
-  // @ts-ignore
-  const success = await employeeProvider(req.context.db).remove(req.params.id)
+  const success = await dataAccessor(req).remove(idParam(req))
 
-  if (success) {
-    throw createError(404)
+  if (!success) {
+    throw createHttpError(404)
   } else {
-    res.json({ ok: true })
+    res.sendOk()
   }
 }
 
-/** @type {RequestHandler} Processes GET request to fetch data of existing application user. */
-async function getEmployeeList(req, res) {
-  const employees = []
-
-  for await (const doc of employeeProvider(req.context.db).list()) {
-    employees.push(
+/** @type {RequestHandler} Returns list of existing documents. */
+async function listEmployees(req, res) {
+  const list = []
+  for await (const doc of dataAccessor(req).list()) {
+    list.push(
       formatEmployeeDoc(doc, {
         capitalize: req.config('general.employeeNameCapitalize')
       })
     )
   }
 
-  res.json({ list: employees })
+  res.json({ list })
 }
 
-/** @type {RequestHandler} Processes GET request to fetch data of existing application user. */
+/** @type {RequestHandler} Returns data of an existing document. */
 async function readEmployee(req, res) {
-  // @ts-ignore
-  const employee = await employeeProvider(req.context.db).read(req.params.id)
+  const doc = await dataAccessor(req).read(idParam(req))
 
-  if (!employee) {
-    throw createError(404)
+  if (!doc) {
+    throw createHttpError(404)
   } else {
     res.json({
-      doc: formatEmployeeDoc(employee, {
+      doc: formatEmployeeDoc(doc, {
         capitalize: req.config('general.employeeNameCapitalize')
       })
     })
   }
 }
 
-/** @type {RequestHandler} Processes PUT request to replace employee data with new one. */
-async function replaceEmployee(req, res) {
-  const { error, value: doc } = employeeSchema
-    .base(req.config('input.employee'))
-    .validate(req.body ?? {})
-
-  if (error) {
-    throw error
-  }
-
-  const success = await employeeProvider(req.context.db).replace(
-    // @ts-ignore
-    req.params.id,
-    doc
+/** @type {RequestHandler} Updates data of an existing document. */
+async function updateEmployee(req, res) {
+  /** @type {Collection.OmitBase<Collection.Employee, "password">} */
+  const doc = joiValidate(
+    req.body,
+    employeeSchema.base(req.config('input.employee'))
   )
 
+  const success = await dataAccessor(req).replace(idParam(req), doc)
+
   if (!success) {
-    throw createError(404)
+    throw createHttpError(404)
   } else {
-    res.json({ ok: true })
+    res.sendOk()
   }
 }
 
-/** @type {RequestHandler} Processes POST request to change employee authorization password. */
+/** @type {RequestHandler} Updates authorization password. */
 async function updateEmployeePassword(req, res) {
-  const { error, value: doc } = employeeSchema
-    .password(req.config('input.employee'))
-    .validate(req.body ?? {})
+  /** @type {Required<Pick<Collection.Employee, "password">>} */
+  const doc = joiValidate(
+    req.body,
+    employeeSchema.password(req.config('input.employee'))
+  )
 
-  if (error) {
-    throw error
-  } else {
-    doc.password = await hashPassword(doc.password, {
-      hashSize: req.config('general.passwdHashSize')
-    })
-  }
+  doc.password = await hashPassword(doc.password, {
+    hashSize: req.config('general.passwdHashSize')
+  })
 
-  const success = await employeeProvider(req.context.db).update(
-    // @ts-ignore
-    req.params.id,
-    doc
+  const success = await dataAccessor(req).updatePassword(
+    idParam(req),
+    doc.password
   )
 
   if (!success) {
-    throw createError(404)
+    throw createHttpError(404)
   } else {
-    res.json({ ok: true })
+    res.sendOk()
   }
 }
 
 module.exports = {
   createEmployee,
   deleteEmployee,
-  getEmployeeList,
+  listEmployees,
   readEmployee,
-  replaceEmployee,
+  updateEmployee,
   updateEmployeePassword
 }

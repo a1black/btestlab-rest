@@ -1,7 +1,7 @@
 'use strict'
 
 const Joi = require('joi')
-const createError = require('http-errors')
+const createHttpError = require('http-errors')
 const express = require('express')
 
 const lpuController = require('./lpu_controller')
@@ -16,7 +16,7 @@ module.exports = () =>
         .required()
         .validate(id, { convert: true })
       req.params.lpu = value
-      next(error ? createError(404) : undefined)
+      next(error ? createHttpError(404) : undefined)
     })
     .delete('/:id', lpuController.deleteLpu)
     .get('/:id', lpuController.readLpu)

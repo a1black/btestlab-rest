@@ -19,13 +19,13 @@
     "passwdHashSize": 32
   },
   "genops": {
-    "employee": {
-      "codeLength": 4,
-      "codePrefix": 3400
+    "employeeId": {
+      "length": 5,
+      "prefix": 34000
     },
-    "lpu": {
-      "idLength": 6,
-      "idPrefix": 3400
+    "lpuId": {
+      "length": 6,
+      "prefix": 3400
     }
   }
 }

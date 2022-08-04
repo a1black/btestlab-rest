@@ -1,4 +1,13 @@
 {
+  "auth": {
+    "login": {
+      "maxLength": 256
+    },
+    "password": {
+      "maxLength": 64,
+      "minLength": 4
+    }
+  },
   "contingent": {
     "code": {
       "maxLength": 10,

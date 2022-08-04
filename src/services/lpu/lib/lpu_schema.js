@@ -8,41 +8,36 @@
  * @property {number} name.maxLength Maximum length of input value.
  * @property {Object} opf Legal entity name validation options.
  * @property {number} opf.maxLength Maximum length of input value.
- * @property {RegExp} opf.pattern Allowed character set.
+ * @property {RegExp} opf.pattern Regular expression to match input value.
  */
 
 const Joi = require('joi')
 
-const emptySchema = () => Joi.string().allow('').pattern(/^\s+$/)
-/** @type {(value: any) => any} Collapses consequent spaces in one. */
-const collapseSpaces = value =>
-  typeof value === 'string' ? value.replaceAll(/\s{2,}/, ' ') : value
-/** @type {() => Joi.ValidationOptions} */
-const validationOptions = () => ({
-  abortEarly: false,
-  convert: true,
-  errors: { render: false },
-  skipFunctions: true,
-  stripUnknown: true
-})
+const {
+  baseValidationOptions,
+  blankStringSchema,
+  collapseSpacesCustomRule
+} = require('../../../libs/joi_schema_helpers')
 
 function lpuCodeSchema() {
   return Joi.number().integer().positive().max(Number.MAX_SAFE_INTEGER)
 }
 
-/** @type {(options: { maxLength: number }) => Joi.StringSchema} */
+/**
+ * @param {{ maxLength: number }} options Validation options.
+ * @returns {Joi.StringSchema} A schema object to validate short and full organization name.
+ */
 function lpuNameSchema(options) {
   return Joi.string()
-    .empty(emptySchema())
+    .empty(blankStringSchema())
     .trim()
-    .custom(collapseSpaces)
+    .custom(collapseSpacesCustomRule)
     .max(options.maxLength)
 }
 
 /**
- *
  * @param {LpuSchemaOptions} options Validation options.
- * @returns
+ * @returns {Joi.ObjectSchema} A schema object to validate input data for insert and update operations.
  */
 function lpuSchema(options) {
   return Joi.object({
@@ -54,19 +49,11 @@ function lpuSchema(options) {
       .required(),
     abbr: lpuNameSchema(options.abbr).required(),
     name: lpuNameSchema(options.name).required()
-  }).prefs(validationOptions())
+  })
+    .required()
+    .prefs(baseValidationOptions())
 }
 
 module.exports = {
-  code: lpuCodeSchema,
-  full: lpuSchema,
-  /** @type {(schema: Joi.Schema, data?: any) => any} */
-  validate: (schema, data) => {
-    const { error, value } = schema.validate(data ?? {})
-    if (error) {
-      throw error
-    } else {
-      return value
-    }
-  }
+  base: lpuSchema
 }

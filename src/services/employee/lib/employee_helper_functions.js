@@ -2,45 +2,43 @@
 
 const crypto = require('crypto')
 
+const {
+  propertySetterOfResponseData
+} = require('../../../libs/http_service_helpers')
+
 /**
- * Returns HTTP service response data.
- * @param {Collection.Employee} doc Database document instance.
+ * @param {Date} date A date object.
+ * @returns {string} Date string formatted as 'YYYY-MM-DD'.
+ */
+function dateSimpleISOFormat(date) {
+  return date.toISOString().split('T')[0]
+}
+
+/**
+ * Prepares document to be served by HTTP service.
+ *
+ * @param {Partial<Collection.Employee>} doc Instance of a database document.
  * @param {{ capitalize: RegExp }} options Formatting options.
- * @returns {any} Formated plain object.
+ * @returns {any} Formatted plain object.
  */
 function formatEmployeeDoc(doc, { capitalize }) {
-  /** @type {(target: any, name: string, value: any) => void} Set object property. */
-  const setter = (target, name, value) => (target[name] = value)
-  /** @type {(value: string) => string} Capitalize person name. */
+  /** @type {(value?: string) => string | undefined} */
   const capitalizeName = value =>
-    value
-      .toLocaleLowerCase()
-      .replace(capitalize, match => match.toLocaleUpperCase())
+    value?.toLowerCase().replace(capitalize, match => match.toUpperCase())
 
-  const res = {
-    birthdate: doc.birthdate.toISOString().split('T')[0],
-    firstname: capitalizeName(doc.firstname),
-    lastname: capitalizeName(doc.lastname),
-    middlename: capitalizeName(doc.middlename),
-    sex: doc.sex
-  }
-
-  doc.admin === true && setter(res, 'admin', true)
-  doc.ctime && setter(res, 'created', doc.ctime.getTime())
-  doc.mtime && setter(res, 'modified', doc.mtime.getTime())
-
-  return res
+  return propertySetterOfResponseData({}, [
+    ['id', doc._id],
+    ['firstname', capitalizeName(doc.firstname)],
+    ['lastname', capitalizeName(doc.lastname)],
+    ['middlename', capitalizeName(doc.middlename)],
+    ['sex', doc.sex],
+    ['birthdate', doc.birthdate ? dateSimpleISOFormat(doc.birthdate) : null],
+    ['admin', doc.admin === true],
+    ['created', doc.ctime?.getTime()],
+    ['modified', doc.mtime?.getTime()]
+  ])
 }
 
-/**
- * @param {{ length: number, prefix: number }} options Generator options.
- * @returns {number} Randomly generated number.
- */
-function generateId({ length, prefix }) {
-  return (
-    crypto.randomInt(Math.pow(10, length) - 1) + prefix * Math.pow(10, length)
-  )
-}
 /**
  * @param {string} value Raw password string.
  * @param {{ hashSize: number }} options Password hashing options.
@@ -63,7 +61,7 @@ function hashPassword(value, { hashSize }) {
 }
 
 module.exports = {
+  dateSimpleISOFormat,
   formatEmployeeDoc,
-  generateId,
   hashPassword
 }

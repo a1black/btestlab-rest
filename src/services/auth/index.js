@@ -4,15 +4,13 @@ const express = require('express')
 
 const AuthController = require('./auth_controller')
 
-/**
- * @returns {express.IRouter} Authentication request handlers.
- */
-function init() {
-  const router = express.Router()
+/** @type {express.RequestHandler} */
+const skipIfInternal = (req, res, next) =>
+  next(req.isInternal() ? 'route' : undefined)
 
-  router.post('/', AuthController.authByLogin)
-
-  return router
-}
-
-module.exports = init
+module.exports = () =>
+  express
+    .Router()
+    .get('/users', AuthController.listUsers)
+    .post('/', express.json(), skipIfInternal, AuthController.loginPasswordAuth)
+    .post('/', express.json(), AuthController.trustedAuth)
