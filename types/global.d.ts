@@ -47,24 +47,12 @@ declare global {
 
   // Application specific types
   type Application = [express.Application, () => http.Server];
-
-  interface ApplicationContext {
-    client: mongodb.MongoClient;
-    db: mongodb.Db;
-    logger: pino.Logger;
-  }
-
-  interface Configuration {
+  type ApplicationConfiguration = {
     accessToken: {
-      adminKey: string;
       algorithm: jwt.Algorithm;
+      expiresIn: number;
       issuer: string;
       secret: Buffer;
-      ttl: number;
-    };
-    db: {
-      dbname: string;
-      uri: string;
     };
     general: {
       employeeNameCapitalize: RegExp;
@@ -86,13 +74,42 @@ declare global {
       employee: any;
       lpu: any;
     };
+  };
+  type Configuration = ApplicationConfiguration & HttpServerConfiguration;
+  type HttpServerConfiguration = {
+    db: {
+      dbname: string;
+      uri: string;
+    };
     server: {
       env: string;
       host?: string;
       logLevel?: string;
       port?: number;
     };
+  };
+
+  interface ApplicationContext {
+    client: mongodb.MongoClient;
+    db: mongodb.Db;
+    logger: pino.Logger;
   }
+
+  interface Error {
+    /** HTTP response status code. */
+    status?: number;
+    /** Alias for `status`. */
+    statusCode?: number;
+  }
+
+  interface JwtPayload extends jwt.JwtPayload {
+    admin?: boolean;
+    firstname: string;
+    lastname: string;
+    sex: string;
+  }
+
+  interface User extends Collection.Employee {}
 
   namespace Collection {
     type InferIdType<T> = mongodb.InferIdType<T>;
@@ -139,19 +156,19 @@ declare global {
 
   namespace Express {
     interface Request {
+      /** Json web token payload. */
+      auth: JwtPayload;
       /** Method for fetching configuration values. */
-      config: <
-        K extends Join<Paths<Omit<Configuration, "db" | "server">>, ".">
-      >(
+      config: <K extends Join<Paths<ApplicationConfiguration>, ".">>(
         path: K,
         _default?: any
-      ) => Leafs<Omit<Configuration, "db" | "server">, K>;
+      ) => Leafs<ApplicationConfiguration, K>;
       /** Application global state. */
       context: ApplicationContext;
-      /** Returns encodes access token. */
-      generateAccessToken: (payload: Dict<any>) => string;
       /** Verify internal network request. */
       isInternal: () => boolean;
+      /** Database document of authenticated user. */
+      user: User;
     }
 
     interface Response {

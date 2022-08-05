@@ -5,9 +5,14 @@ const createHttpError = require('http-errors')
 const express = require('express')
 
 const contingentController = require('./contingent_controller')
+const {
+  fetchUserRequestHandler: fetchUser,
+  verifyJwtRequestHandler: verifyJwt
+} = require('../../libs/access_control_helpers')
 
-module.exports = () =>
-  express
+/** @type {(config: ApplicationConfiguration) => express.IRouter} */
+function contingentRouter(config) {
+  return express
     .Router()
     .param('code', (req, res, next, code) => {
       const { error, value } = Joi.string()
@@ -18,9 +23,13 @@ module.exports = () =>
       req.params.code = value
       next(error ? createHttpError(404) : undefined)
     })
+    .use(verifyJwt(config.accessToken), fetchUser())
     .delete('/:code', contingentController.deleteContingent)
     .get('/:code/history', contingentController.readContingentHistory)
     .get('/:code', contingentController.readContingent)
     .get('/', contingentController.listContingents)
     .post('/', contingentController.createContingent)
     .put('/:code', contingentController.updateContingent)
+}
+
+module.exports = contingentRouter

@@ -12,6 +12,7 @@ class CollectionNameEnum extends Enum {
   static CONTINGENT = 'contingent'
   static EMPLOYEE = 'employee'
   static LPU = 'lpu'
+  static USER = 'employee'
 }
 
 module.exports = {

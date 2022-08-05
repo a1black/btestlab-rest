@@ -5,10 +5,9 @@
     "logLevel": "error"
   },
   "accessToken": {
-    "adminKey": "admin",
     "algorithm": "HS256",
-    "issuer": "https://voib2lab.ru",
-    "ttl": 86400
+    "expiresIn": 86400,
+    "issuer": "https://voib2lab.ru"
   },
   "db": {
     "dbname": "exam_journal",

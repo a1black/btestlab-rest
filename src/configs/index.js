@@ -53,7 +53,7 @@ function readJwtKey() {
 }
 
 /**
- * @returns {Promise<Omit<Configuration, 'input'>>} Validated configuration object.
+ * @returns {Promise<Omit<Configuration, "input">>} Validated configuration object.
  */
 async function loadApplicationConfig() {
   try {
@@ -69,11 +69,10 @@ async function loadApplicationConfig() {
     // Joi schema object for validation application configuration.
     const schema = Joi.object({
       accessToken: Joi.object({
-        adminKey: JoiString(),
         algorithm: JoiString(),
+        expiresIn: JoiInteger(),
         issuer: JoiString().uri(),
-        secret: JoiString().base64(),
-        ttl: JoiInteger()
+        secret: JoiString().base64()
       }),
       db: Joi.object({
         dbname: JoiString(),
@@ -136,7 +135,7 @@ async function loadApplicationConfig() {
 }
 
 /**
- * @returns {Promise<Configuration['input']>} User input validation options.
+ * @returns {Promise<Configuration["input"]>} User input validation options.
  */
 async function loadInputValidationConfig() {
   try {

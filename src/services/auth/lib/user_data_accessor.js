@@ -2,8 +2,8 @@
 
 /**
  * @typedef {import("mongodb").Db} mongodb.Db
- * @typedef {import("mongodb").Collection<Collection.Employee>} UserCollection
- * @typedef {import("mongodb").FindCursor<Partial<Collection.Employee>>} UserFindCursor
+ * @typedef {import("mongodb").Collection<User>} UserCollection
+ * @typedef {import("mongodb").FindCursor<Partial<User>>} UserFindCursor
  */
 
 const { CollectionNameEnum } = require('../../../globals')
@@ -29,8 +29,8 @@ class UserDataAccessor {
   }
 
   /**
-   * @param {Collection.InferIdType<Collection.Employee>} id Document's primary key.
-   * @returns {Promise<Collection.Employee?>} Matched document or `null`.
+   * @param {Collection.InferIdType<User>} id Document's primary key.
+   * @returns {Promise<User?>} Matched document or `null`.
    */
   read(id) {
     return this.collection.findOne({ _id: id })
@@ -38,4 +38,4 @@ class UserDataAccessor {
 }
 
 /** @type {(db: mongodb.Db) => UserDataAccessor} */
-module.exports = db => new UserDataAccessor(db, CollectionNameEnum.EMPLOYEE)
+module.exports = db => new UserDataAccessor(db, CollectionNameEnum.USER)

@@ -6,10 +6,7 @@ const objectGet = require('lodash.get')
 
 const configuration = require('./configs')
 const router = require('./routes')
-const {
-  generateAccessToken,
-  httpResponseAliases
-} = require('./libs/http_service_helpers')
+const { httpResponseAliases } = require('./libs/http_service_helpers')
 
 /**
  * @returns {Promise<Application>} Express application instance and startup function.
@@ -27,7 +24,7 @@ async function application() {
       level: logLevel ?? 'error'
     })
 
-    const app = router()
+    const app = router(config)
       .enable('strict routing')
       .enable('trust proxy')
       .disable('x-powered-by')
@@ -37,8 +34,6 @@ async function application() {
       // Extend HTTP Request object
       req.config = (path, _default) => objectGet(config, path, _default)
       req.context = { client: dbclient, db, logger }
-      req.generateAccessToken = payload =>
-        generateAccessToken(payload, config.accessToken)
       req.isInternal = () => req.get('X-Internal-Addr') === '1'
       // Extend HTTP Response object
       httpResponseAliases(res)

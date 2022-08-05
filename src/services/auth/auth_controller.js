@@ -8,11 +8,8 @@
 const authSchema = require('./lib/auth_schema')
 const userDataAccessor = require('./lib/user_data_accessor')
 const { AuthenticationError } = require('./lib/errors')
-const {
-  formatAccessTokenPayload,
-  formatUserDoc,
-  verifyPassword
-} = require('./lib/auth_helper_functions')
+const { formatUserDoc, verifyPassword } = require('./lib/auth_helper_functions')
+const { generateUserJwt } = require('../../libs/access_control_helpers')
 
 /** @param {Request} req HTTP request object. */
 const dataAccessor = req => userDataAccessor(req.context.db)
@@ -35,12 +32,8 @@ async function loginPasswordAuth(req, res) {
     throw new Error(`No password for admin user: '${user._id}'`)
   }
 
-  const accessToken = req.generateAccessToken(
-    // @ts-ignore
-    formatAccessTokenPayload(user, {
-      capitalize: req.config('general.employeeNameCapitalize')
-    })
-  )
+  // @ts-ignore
+  const accessToken = generateUserJwt(user, req.config('accessToken'))
 
   res.json({ accessToken })
 }
@@ -49,11 +42,7 @@ async function loginPasswordAuth(req, res) {
 async function listUsers(req, res) {
   const list = []
   for await (const doc of dataAccessor(req).list()) {
-    list.push(
-      formatUserDoc(doc, {
-        capitalize: req.config('general.employeeNameCapitalize')
-      })
-    )
+    list.push(formatUserDoc(doc))
   }
 
   res.json({ list })
@@ -86,11 +75,7 @@ async function trustedAuth(req, res) {
     throw new Error(`No password for admin user: '${user._id}'`)
   }
 
-  const accessToken = req.generateAccessToken(
-    formatAccessTokenPayload(user, {
-      capitalize: req.config('general.employeeNameCapitalize')
-    })
-  )
+  const accessToken = generateUserJwt(user, req.config('accessToken'))
 
   res.json({ accessToken })
 }

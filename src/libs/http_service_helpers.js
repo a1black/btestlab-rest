@@ -1,22 +1,5 @@
 'use strict'
 
-const jwt = require('jsonwebtoken')
-
-/**
- * @param {Dict<any>} payload Authentication data.
- * @param {Configuration["accessToken"]} options Generator options.
- * @returns {string}
- */
-function generateAccessToken(payload, options) {
-  const { id: subject, ...data } = payload
-  const { secret, ttl, ...jwtops } = options
-
-  subject && Object.assign(jwtops, { subject })
-  ttl && Object.assign(jwtops, { expiresIn: ttl })
-
-  return jwt.sign(data, secret, jwtops)
-}
-
 /**
  * Extends HTTP response object with aliases for sending data via `json` method.
  * @param {import('express').Response} res Express HTTP response object.
@@ -59,7 +42,6 @@ function propertySetterOfResponseData(obj, property, value) {
 }
 
 module.exports = {
-  generateAccessToken,
   httpResponseAliases,
   isNone,
   propertySetterOfResponseData

@@ -4,42 +4,26 @@ const crypto = require('crypto')
 const { Buffer } = require('buffer')
 
 const {
+  capitalize,
+  dateToShortISOString
+} = require('../../../libs/functional_helpers')
+const {
   propertySetterOfResponseData
 } = require('../../../libs/http_service_helpers')
 
 /**
- * Prepares user info to be included as payload of access token.
- *
- * @param {Partial<Collection.Employee>} doc Instance of a database document.
- * @param {{ capitalize: RegExp }} options Formatting options.
- * @returns {Dict<any>} Formatted plain object.
- */
-function formatAccessTokenPayload(doc, { capitalize }) {
-  const payload = formatUserDoc(doc, { capitalize })
-  delete payload.birthdate
-
-  return payload
-}
-
-/**
  * Prepares document to be served by HTTP service.
  *
- * @param {Partial<Collection.Employee>} doc Instance of a database document.
- * @param {{ capitalize: RegExp }} options Formatting options.
+ * @param {Partial<User>} doc Instance of a database document.
  * @returns {Dict<any>} Formatted plain object.
  */
-function formatUserDoc(doc, { capitalize }) {
-  /** @type {(value?: string) => string | undefined} */
-  const capitalizeName = value =>
-    value?.toLowerCase().replace(capitalize, match => match.toUpperCase())
-
+function formatUserDoc(doc) {
   return propertySetterOfResponseData({}, [
     ['id', doc._id],
-    ['firstname', capitalizeName(doc.firstname)],
-    ['lastname', capitalizeName(doc.lastname)],
-    ['middlename', capitalizeName(doc.middlename)],
-    ['sex', doc.sex],
-    ['birthdate', doc.birthdate?.toISOString().split('T')[0]],
+    ['firstname', capitalize(doc.firstname)],
+    ['lastname', capitalize(doc.lastname)],
+    ['middlename', capitalize(doc.middlename)],
+    ['birthdate', dateToShortISOString(doc.birthdate)],
     ['admin', doc.admin === true]
   ])
 }
@@ -62,7 +46,6 @@ async function verifyPassword(password, digest) {
 }
 
 module.exports = {
-  formatAccessTokenPayload,
   formatUserDoc,
   verifyPassword
 }
