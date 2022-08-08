@@ -1,0 +1,12 @@
+{
+  "env": {
+    "jest": true
+  },
+  "extends": ["plugin:jest/recommended"],
+  "plugins": ["jest"],
+  "settings": {
+    "jest": {
+      "version": 28
+    }
+  }
+}
