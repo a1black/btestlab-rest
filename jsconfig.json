@@ -1,12 +1,14 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "target": "es2021",
+    "moduleResolution": "node",
+    "target": "esnext",
 
     "checkJs": true,
     "skipLibCheck": true,
     "strict": true,
 
+    "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
