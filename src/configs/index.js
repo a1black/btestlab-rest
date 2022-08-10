@@ -22,11 +22,12 @@ const JoiString = () => Joi.string().empty(blankStringSchema())
  * @returns {any} Merged configuration object.
  */
 function mergeConfigSection(name, schema, base, ...configs) {
-  const /** @type {any[]} */ stripped = []
+  const /** @type {any[]} */ diffs = []
   for (const config of configs) {
     const { error, value } = schema.validate(config, {
       abortEarly: false,
-      allowUnknown: true
+      allowUnknown: true,
+      presence: 'optional'
     })
 
     if (error) {
@@ -34,15 +35,16 @@ function mergeConfigSection(name, schema, base, ...configs) {
         cause: error
       })
     } else {
-      stripped.push(value)
+      diffs.push(value)
     }
   }
 
-  return Object.assign(base, ...stripped)
+  return Object.assign(base, ...diffs)
 }
 
 /**
  * Reads JsonWebToken secret key from file.
+ *
  * @returns {Promise<string?>} Secret as plain text.
  */
 function readJwtKey() {
@@ -79,7 +81,6 @@ async function loadApplicationConfig() {
         uri: JoiString().uri({ scheme: 'mongodb' })
       }),
       general: Joi.object({
-        employeeNameCapitalize: Joi.regex(),
         passwdHashSize: JoiInteger().min(32)
       }),
       genops: Joi.object({
@@ -93,8 +94,8 @@ async function loadApplicationConfig() {
         })
       }),
       server: Joi.object({
-        env: JoiString(),
-        host: JoiString().ip({ cidr: 'forbidden' }),
+        env: JoiString().optional(),
+        host: JoiString().ip({ cidr: 'forbidden' }).optional(),
         port: Joi.number().port(),
         logLevel: JoiString().allow('error', 'warn', 'info', 'debug').optional()
       })
@@ -103,6 +104,7 @@ async function loadApplicationConfig() {
     const appconfig = Joi.attempt(
       {
         db: mergeConfigSection('db', schema.extract('db'), db, {
+          dbname: process.env.MONGODB_DB,
           uri: process.env.MONGODB_URI
         }),
         server: mergeConfigSection('server', schema.extract('server'), server, {

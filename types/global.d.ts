@@ -46,7 +46,6 @@ declare global {
   type Prev = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ...0[]];
 
   // Application specific types
-  type Application = [express.Application, () => http.Server];
   type ApplicationConfiguration = {
     accessToken: {
       algorithm: jwt.Algorithm;
@@ -55,7 +54,6 @@ declare global {
       secret: Buffer;
     };
     general: {
-      employeeNameCapitalize: RegExp;
       passwdHashSize: number;
     };
     genops: {
@@ -85,7 +83,7 @@ declare global {
       env: string;
       host?: string;
       logLevel?: string;
-      port?: number;
+      port: number;
     };
   };
 

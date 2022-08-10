@@ -1,5 +1,10 @@
 'use strict'
 
+/**
+ * @typedef {import("express").Application} Application
+ * @typedef {import("http").Server} Server
+ */
+
 const mongodb = require('mongodb')
 const pino = require('pino')
 const objectGet = require('lodash.get')
@@ -9,7 +14,7 @@ const router = require('./routes')
 const { httpResponseAliases } = require('./libs/http_service_helpers')
 
 /**
- * @returns {Promise<Application>} Express application instance and startup function.
+ * @returns {Promise<[Application, () => Server, () => Promise<void>]>} Express application instance, startup and teardown functions.
  */
 async function application() {
   const { db: dbconf, server: serverconf, ...config } = await configuration()
@@ -43,7 +48,8 @@ async function application() {
 
     return [
       app,
-      () => (host && port ? app.listen(port, host) : app.listen(port))
+      () => (host ? app.listen(port, host) : app.listen(port)),
+      () => dbclient.close()
     ]
   } catch (error) {
     await dbclient.close(true)

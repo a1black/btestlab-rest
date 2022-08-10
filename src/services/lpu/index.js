@@ -27,11 +27,11 @@ function lpuRouter(config) {
     .delete('/:id', lpuController.deleteLpu)
     .get('/:id', lpuController.readLpu)
     .get('/', lpuController.listLpus)
-    .post('/', lpuController.createLpu)
+    .post('/', express.json(), lpuController.createLpu)
     .put('/:id/deactivate', lpuController.deactivateLpu)
     .put('/:id/reactivate', lpuController.reactivateLpu)
     .put('/:id/restore', lpuController.restoreLpu)
-    .put('/:id', lpuController.updateLpu)
+    .put('/:id', express.json(), lpuController.updateLpu)
 }
 
 module.exports = lpuRouter

@@ -3,36 +3,27 @@
 const crypto = require('crypto')
 
 const {
+  capitalize,
+  dateToShortISOString
+} = require('../../../libs/functional_helpers')
+const {
   propertySetterOfResponseData
 } = require('../../../libs/http_service_helpers')
-
-/**
- * @param {Date} date A date object.
- * @returns {string} Date string formatted as 'YYYY-MM-DD'.
- */
-function dateSimpleISOFormat(date) {
-  return date.toISOString().split('T')[0]
-}
 
 /**
  * Prepares document to be served by HTTP service.
  *
  * @param {Partial<Collection.Employee>} doc Instance of a database document.
- * @param {{ capitalize: RegExp }} options Formatting options.
  * @returns {any} Formatted plain object.
  */
-function formatEmployeeDoc(doc, { capitalize }) {
-  /** @type {(value?: string) => string | undefined} */
-  const capitalizeName = value =>
-    value?.toLowerCase().replace(capitalize, match => match.toUpperCase())
-
+function formatEmployeeDoc(doc) {
   return propertySetterOfResponseData({}, [
     ['id', doc._id],
-    ['firstname', capitalizeName(doc.firstname)],
-    ['lastname', capitalizeName(doc.lastname)],
-    ['middlename', capitalizeName(doc.middlename)],
+    ['firstname', capitalize(doc.firstname)],
+    ['lastname', capitalize(doc.lastname)],
+    ['middlename', capitalize(doc.middlename)],
     ['sex', doc.sex],
-    ['birthdate', doc.birthdate ? dateSimpleISOFormat(doc.birthdate) : null],
+    ['birthdate', doc.birthdate ? dateToShortISOString(doc.birthdate) : null],
     ['admin', doc.admin === true],
     ['created', doc.ctime?.getTime()],
     ['modified', doc.mtime?.getTime()]
@@ -61,7 +52,6 @@ function hashPassword(value, { hashSize }) {
 }
 
 module.exports = {
-  dateSimpleISOFormat,
   formatEmployeeDoc,
   hashPassword
 }

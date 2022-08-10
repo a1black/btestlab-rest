@@ -62,11 +62,7 @@ async function deleteEmployee(req, res) {
 async function listEmployees(req, res) {
   const list = []
   for await (const doc of dataAccessor(req).list()) {
-    list.push(
-      formatEmployeeDoc(doc, {
-        capitalize: req.config('general.employeeNameCapitalize')
-      })
-    )
+    list.push(formatEmployeeDoc(doc))
   }
 
   res.json({ list })
@@ -79,11 +75,7 @@ async function readEmployee(req, res) {
   if (!doc) {
     throw createHttpError(404)
   } else {
-    res.json({
-      doc: formatEmployeeDoc(doc, {
-        capitalize: req.config('general.employeeNameCapitalize')
-      })
-    })
+    res.json({ doc: formatEmployeeDoc(doc) })
   }
 }
 

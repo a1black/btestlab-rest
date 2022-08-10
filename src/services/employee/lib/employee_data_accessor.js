@@ -95,10 +95,8 @@ class EmployeeDataAccessor {
         {
           $replaceWith: {
             $mergeObjects: [
-              { _id: '$_id', ctime: '$ctiem' },
-              // TODO: is this condition necessary
-              { $cond: ['$password', { password: '$password' }, {}] },
-              doc
+              doc,
+              { _id: '$_id', ctime: '$ctiem', password: '$password' }
             ]
           }
         },

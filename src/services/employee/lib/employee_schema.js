@@ -2,6 +2,8 @@
 
 /**
  * @typedef {Object} EmployeeSchemaOptions
+ * @property {Object} birthdate Date validation options.
+ * @property {string} birthdate.min Minimal allowed value.
  * @property {Object} name Name validation options.
  * @property {number} name.maxLength Maximum length of input value.
  * @property {RegExp} name.pattern Regular expression to match input value.
@@ -13,10 +15,11 @@
 
 const Joi = require('joi')
 
-const { dateSimpleISOFormat } = require('./employee_helper_functions')
 const {
   baseValidationOptions,
-  blankStringSchema
+  blankStringSchema,
+  collapseSpacesCustomRule,
+  unsetTimeInDateCustomRule
 } = require('../../../libs/joi_schema_helpers')
 
 /**
@@ -29,6 +32,7 @@ function employeeNameSchema(options) {
     .normalize()
     .trim()
     .lowercase()
+    .custom(collapseSpacesCustomRule)
     .max(options.maxLength)
     .pattern(options.pattern)
 }
@@ -56,7 +60,9 @@ function employeeSchema(options) {
     birthdate: Joi.date()
       .empty(blankStringSchema())
       .iso()
-      .custom(value => new Date(dateSimpleISOFormat(value)))
+      .custom(unsetTimeInDateCustomRule)
+      .max('now')
+      .min(new Date(options.birthdate.min))
       .required(),
     firstname: employeeNameSchema(options.name).required(),
     lastname: employeeNameSchema(options.name).required(),

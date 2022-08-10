@@ -18,6 +18,9 @@
     }
   },
   "employee": {
+    "birthdate": {
+      "min": "1900-01-01"
+    },
     "name": {
       "maxLength": 256,
       "pattern": [
@@ -28,7 +31,7 @@
     "password": {
       "maxLength": 32,
       "minLength": 6,
-      "pattern": "^[\\w!#$%&?@^=+-]+$"
+      "pattern": "^[\\w.,:;?!*+%-@$#]+$"
     }
   },
   "lpu": {

@@ -88,7 +88,7 @@ class LpuDataAccessor {
    * @returns {LpuFindCursor} Cursor over existing (non-deleted) documents in the collection.
    */
   list() {
-    return this.collection.find(queryExisted({}))
+    return this.collection.find(queryExisted({})).sort({ code: 1, dep: 1 })
   }
 
   /**
@@ -136,9 +136,8 @@ class LpuDataAccessor {
         {
           $replaceWith: {
             $mergeObjects: [
-              // TODO: test merge for optional properties like `xtime`
-              { _id: '$_id', ctime: '$ctiem', xtime: '$xtime' },
-              doc
+              doc,
+              { _id: '$_id', ctime: '$ctiem', xtime: '$xtime' }
             ]
           }
         },

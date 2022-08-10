@@ -48,13 +48,19 @@ function employeeRouter(config) {
     .delete('/:id', isAdmin, notMyself, employeeController.deleteEmployee)
     .get('/:id', employeeController.readEmployee)
     .get('/', employeeController.listEmployees)
-    .post('/', isAdmin, employeeController.createEmployee)
+    .post('/', isAdmin, express.json(), employeeController.createEmployee)
     .put(
       '/:id/password',
       isAdminOrMyself,
+      express.json(),
       employeeController.updateEmployeePassword
     )
-    .put('/:id', isAdminOrMyself, employeeController.updateEmployee)
+    .put(
+      '/:id',
+      isAdminOrMyself,
+      express.json(),
+      employeeController.updateEmployee
+    )
 }
 
 module.exports = employeeRouter

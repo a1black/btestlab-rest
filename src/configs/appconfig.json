@@ -1,8 +1,7 @@
 {
   "server": {
-    "host": "0.0.0.0",
-    "port": 80,
-    "logLevel": "error"
+    "logLevel": "error",
+    "port": 80
   },
   "accessToken": {
     "algorithm": "HS256",
@@ -14,7 +13,6 @@
     "uri": "mongodb://mongodb:27017"
   },
   "general": {
-    "employeeNameCapitalize": ["(?<=^|\\P{L})\\p{L}|[ivx]", "gu"],
     "passwdHashSize": 32
   },
   "genops": {

@@ -2,12 +2,11 @@
 
 /**
  * Extends HTTP response object with aliases for sending data via `json` method.
- * @param {import('express').Response} res Express HTTP response object.
+ *
+ * @param {import("express").Response} res Express HTTP response object.
  */
 function httpResponseAliases(res) {
   res.sendOk = ok => res.json({ ok: ok !== false })
-
-  return res
 }
 
 /**
@@ -43,6 +42,5 @@ function propertySetterOfResponseData(obj, property, value) {
 
 module.exports = {
   httpResponseAliases,
-  isNone,
   propertySetterOfResponseData
 }

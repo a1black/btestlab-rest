@@ -28,8 +28,8 @@ function contingentRouter(config) {
     .get('/:code/history', contingentController.readContingentHistory)
     .get('/:code', contingentController.readContingent)
     .get('/', contingentController.listContingents)
-    .post('/', contingentController.createContingent)
-    .put('/:code', contingentController.updateContingent)
+    .post('/', express.json(), contingentController.createContingent)
+    .put('/:code', express.json(), contingentController.updateContingent)
 }
 
 module.exports = contingentRouter
