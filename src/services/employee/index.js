@@ -9,6 +9,7 @@ const {
   fetchUserRequestHandler: fetchUser,
   verifyJwtRequestHandler: verifyJwt
 } = require('../../libs/access_control_helpers')
+const { serviceCodeErrorHandler } = require('../../libs/error_handlers')
 
 /** @type {express.RequestHandler} */
 const isAdmin = (req, res, next) => {
@@ -61,6 +62,7 @@ function employeeRouter(config) {
       express.json(),
       employeeController.updateEmployee
     )
+    .use(serviceCodeErrorHandler('employee'))
 }
 
 module.exports = employeeRouter

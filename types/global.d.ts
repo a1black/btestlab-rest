@@ -1,3 +1,4 @@
+import Polyglot = require("node-polyglot");
 import express = require("express");
 import http = require("http");
 import jwt = require("jsonwebtoken");
@@ -86,14 +87,20 @@ declare global {
       port: number;
     };
   };
+  type I18nFactoryFunction = (options?: Polyglot.PolyglotOptions) => Polyglot;
 
   interface ApplicationContext {
     client: mongodb.MongoClient;
     db: mongodb.Db;
-    logger: pino.Logger;
   }
 
   interface Error {
+    /** Object to send as a body of HTTP response. */
+    response?: Dict<any>;
+    /** If `true` allow user to see server error message, `false` shows default message. */
+    expose?: boolean;
+    /** Name of service that raised error. */
+    serviceCode?: string;
     /** HTTP response status code. */
     status?: number;
     /** Alias for `status`. */
@@ -163,8 +170,12 @@ declare global {
       ) => Leafs<ApplicationConfiguration, K>;
       /** Application global state. */
       context: ApplicationContext;
+      /** Produces instance of intarnalization  */
+      i18n: I18nFactoryFunction;
       /** Verify internal network request. */
       isInternal: () => boolean;
+      /** Instance of message logger. */
+      logger: pino.Logger;
       /** Database document of authenticated user. */
       user: User;
     }

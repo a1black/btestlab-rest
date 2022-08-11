@@ -2,7 +2,8 @@
 
 const express = require('express')
 
-const AuthController = require('./auth_controller')
+const authController = require('./auth_controller')
+const authErrorHandler = require('./lib/auth_error_handler')
 
 /** @type {express.RequestHandler} */
 const skipIfInternal = (req, res, next) =>
@@ -11,6 +12,7 @@ const skipIfInternal = (req, res, next) =>
 module.exports = () =>
   express
     .Router()
-    .get('/users', AuthController.listUsers)
-    .post('/', express.json(), skipIfInternal, AuthController.loginPasswordAuth)
-    .post('/', express.json(), AuthController.trustedAuth)
+    .get('/users', authController.listUsers)
+    .post('/', express.json(), skipIfInternal, authController.loginPasswordAuth)
+    .post('/', express.json(), authController.trustedAuth)
+    .use(authErrorHandler)

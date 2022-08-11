@@ -6,8 +6,8 @@
  */
 
 const authSchema = require('./lib/auth_schema')
+const createAuthError = require('./lib/errors')
 const userDataAccessor = require('./lib/user_data_accessor')
-const { AuthenticationError } = require('./lib/errors')
 const { formatUserDoc, verifyPassword } = require('./lib/auth_helper_functions')
 const { generateUserJwt } = require('../../libs/access_control_helpers')
 
@@ -27,9 +27,10 @@ async function loginPasswordAuth(req, res) {
     : false
 
   if (!matched) {
-    throw new AuthenticationError(['login', 'password'])
+    throw createAuthError('basic', 'login', 'password')
   } else if (user?.admin && !user.password) {
-    throw new Error(`No password for admin user: '${user._id}'`)
+    req.logger.error(`auth:error:admin:empty_password:id:${user._id}`)
+    throw createAuthError('basic', 'login', 'password')
   }
 
   // @ts-ignore
@@ -58,7 +59,7 @@ async function trustedAuth(req, res) {
   const user = error ? null : await dataAccessor(req).read(login)
 
   if (!user) {
-    throw new AuthenticationError('login')
+    throw createAuthError('user', 'login')
   } else if (user.admin && user.password) {
     const { error, value: password } = schema
       .extract('password')
@@ -69,10 +70,11 @@ async function trustedAuth(req, res) {
       : await verifyPassword(password, user.password)
 
     if (!matched) {
-      throw new AuthenticationError('password')
+      throw createAuthError('pwd', 'password')
     }
   } else if (user.admin) {
-    throw new Error(`No password for admin user: '${user._id}'`)
+    req.logger.error(`auth:error:admin:empty_password:id:${user._id}`)
+    throw createAuthError('pwd', 'password')
   }
 
   const accessToken = generateUserJwt(user, req.config('accessToken'))

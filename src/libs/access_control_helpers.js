@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken')
 const expressJwt = require('express-jwt').expressjwt
 
 const userProvider = require('./user_provider')
-const { capitalize, objectSet } = require('./functional_helpers')
+const { capitalize, objectSetShallow } = require('./functional_helpers')
 
 /** @type {() => RequestHandler} Returns middleware that loads user using id in the access token. */
 function fetchUserRequestHandler() {
@@ -34,11 +34,11 @@ function generateUserJwt(user, options) {
   const { secret, ...jwtops } = options
   const payload = {}
 
-  objectSet(payload, 'firstname', capitalize(user.firstname))
-  objectSet(payload, 'lastname', capitalize(user.lastname))
-  objectSet(payload, 'sex', user.sex)
-  objectSet(payload, 'admin', user.admin === true ? true : undefined)
-  objectSet(jwtops, 'subject', user._id?.toString())
+  objectSetShallow(payload, 'firstname', capitalize(user.firstname))
+  objectSetShallow(payload, 'lastname', capitalize(user.lastname))
+  objectSetShallow(payload, 'sex', user.sex)
+  objectSetShallow(payload, 'admin', user.admin === true ? true : undefined)
+  objectSetShallow(jwtops, 'subject', user._id?.toString())
 
   return jwt.sign(payload, secret, jwtops)
 }

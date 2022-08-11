@@ -26,11 +26,7 @@ async function createLpu(req, res) {
   try {
     const id = await collection.create(doc, req.config('genops.lpuId'))
 
-    if (!id) {
-      throw createHttpError(500, 'Try Later')
-    } else {
-      res.json({ id })
-    }
+    res.json({ id })
   } catch (error) {
     if (collection.isDuplicateError(error, 'code')) {
       const deletedDoc = await collection.readDeleted(doc)

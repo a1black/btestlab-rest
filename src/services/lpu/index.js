@@ -9,6 +9,7 @@ const {
   fetchUserRequestHandler: fetchUser,
   verifyJwtRequestHandler: verifyJwt
 } = require('../../libs/access_control_helpers')
+const { serviceCodeErrorHandler } = require('../../libs/error_handlers')
 
 /** @type {(config: ApplicationConfiguration) => express.IRouter} */
 function lpuRouter(config) {
@@ -32,6 +33,7 @@ function lpuRouter(config) {
     .put('/:id/reactivate', lpuController.reactivateLpu)
     .put('/:id/restore', lpuController.restoreLpu)
     .put('/:id', express.json(), lpuController.updateLpu)
+    .use(serviceCodeErrorHandler('lpu'))
 }
 
 module.exports = lpuRouter

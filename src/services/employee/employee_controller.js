@@ -40,11 +40,7 @@ async function createEmployee(req, res) {
     req.config('genops.employeeId')
   )
 
-  if (!id) {
-    throw createHttpError(500, 'Try Later')
-  } else {
-    res.json({ id })
-  }
+  res.json({ id })
 }
 
 /** @type {RequestHandler} Removes requested document from the database. */

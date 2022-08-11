@@ -9,6 +9,7 @@ const {
   fetchUserRequestHandler: fetchUser,
   verifyJwtRequestHandler: verifyJwt
 } = require('../../libs/access_control_helpers')
+const { serviceCodeErrorHandler } = require('../../libs/error_handlers')
 
 /** @type {(config: ApplicationConfiguration) => express.IRouter} */
 function contingentRouter(config) {
@@ -30,6 +31,7 @@ function contingentRouter(config) {
     .get('/', contingentController.listContingents)
     .post('/', express.json(), contingentController.createContingent)
     .put('/:code', express.json(), contingentController.updateContingent)
+    .use(serviceCodeErrorHandler('contingent'))
 }
 
 module.exports = contingentRouter

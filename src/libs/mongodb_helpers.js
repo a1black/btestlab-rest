@@ -1,5 +1,7 @@
 'use strict'
 
+/** @typedef {{ keyPattern?: Dict<any>, keyValue?: Dict<any> }} DuplicateError */
+
 const crypto = require('crypto')
 const mongodb = require('mongodb')
 
@@ -35,7 +37,7 @@ function generateId(options) {
 /**
  * @param {any} error Error instance to verify.
  * @param {...string} keys Fields of duplicating unique index.
- * @returns {error is mongodb.MongoError}
+ * @returns {error is mongodb.MongoError & DuplicateError}
  */
 function isDuplicateMongoError(error, ...keys) {
   if (error instanceof mongodb.MongoError && error.code === 11000) {

@@ -27,11 +27,7 @@ async function createContingent(req, res) {
 
   const code = await dataAccessor(req).create(doc)
 
-  if (!code) {
-    throw createHttpError(500, 'Try Later')
-  } else {
-    res.json({ id: code })
-  }
+  res.json({ id: code })
 }
 
 /** @type {RequestHandler} Flags requested document as deleted. */
