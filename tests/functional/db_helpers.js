@@ -24,17 +24,19 @@ async function clearCollection(name) {
   await client.close(true)
 }
 
-/** @type {(name: string) => Promise<void>} Removes specified collection. */
-async function dropCollection(name) {
+/** @type {() => Promise<void>} Removes all documents from all collections. */
+async function clearDatabase() {
   const [client, db] = await connect()
 
-  try {
-    await db.dropCollection(name)
-  } catch (error) {
-    // Ignore missing collection error
+  for await (const collection of db.listCollections({}, { nameOnly: true })) {
+    try {
+      await db.collection(collection.name).deleteMany({})
+    } catch (error) {
+      /** Skip */
+    }
   }
 
   await client.close(true)
 }
 
-module.exports = { connect, clearCollection, dropCollection }
+module.exports = { connect, clearCollection, clearDatabase }

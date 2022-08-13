@@ -12,14 +12,17 @@ const initConfiguration = require('../../src/configs')
 const { generateUserJwt } = require('../../src/libs/access_control_helpers')
 
 /**
- * @param {boolean} [admin] Grand admin privileges.
+ * @param {boolean | { admin?: boolean , id?: any }} [options] Grand admin privileges.
  * @returns {Promise<[string, { type: "bearer" }]>} Request authentication options.
  */
-async function generateAccessToken(admin) {
+async function generateAccessToken(options) {
+  const { admin = false, id = undefined } =
+    typeof options === 'boolean' ? { admin: options } : options ?? {}
   const config = await initConfiguration()
 
   const token = await generateUserJwt(
     {
+      _id: id,
       admin: admin === true,
       birthdate: new Date(),
       firstname: 'testuser',
@@ -35,7 +38,7 @@ async function generateAccessToken(admin) {
 
 /** @type {() => () => Promise<[SuperTestRequest, () => Promise<void>]>} */
 function requestFactory() {
-  let /** @type {SuperTestRequest} */ request
+  let /** @type {SuperTestRequest?} */ request
   let /** @type {() => Promise<void>} */ teardown
 
   return async () => {
@@ -49,21 +52,20 @@ function requestFactory() {
       request,
       async () => {
         await teardown()
-        // @ts-ignore
-        request = undefined
+        request = null
         teardown = async () => undefined
       }
     ]
   }
 }
 
-/** @type {(base: string) => (...urlpath: string[]) => string} */
-function urlpathFactory(base) {
-  return (...urlpath) => path.join(base, ...urlpath)
+/** @type {(...parts: any[]) => string} */
+function pathjoin(...parts) {
+  return path.join(...parts.map(v => v.toString()))
 }
 
 module.exports = {
   generateAccessToken,
   requestFactory,
-  urlpathFactory
+  pathjoin
 }

@@ -7,15 +7,14 @@ const contingentSchema = require('../../src/services/contingent/lib/contingent_s
 const employeeSchema = require('../../src/services/employee/lib/employee_schema')
 const lpuSchema = require('../../src/services/lpu/lib/lpu_schema')
 
-/** @type {() => Collection.OmitBase<Collection.Contingent>} */
+/** @type {() => Partial<Record<keyof Collection.Contingent, any>>} */
 function invalidContingent() {
-  return { code: '', desc: '' }
+  return { code: '', desc: ['not a string'] }
 }
 
-/** @type {() => Collection.OmitBase<Collection.Employee>} */
+/** @type {() => Partial<Record<keyof Collection.Employee, any>>} */
 function invalidEmployee() {
   return {
-    // @ts-ignore
     birthdate: '',
     firstname: '',
     lastname: '',
@@ -25,18 +24,21 @@ function invalidEmployee() {
   }
 }
 
-/** @type {() => Collection.OmitBase<Collection.Lpu>} */
+/** @type {() => Partial<Record<keyof Collection.Lpu, any>>} */
 function invalidLpu() {
-  return { abbr: '', code: 0, name: '', opf: '' }
+  return { abbr: '', code: 1.2, dep: 'not number', name: '', opf: '' }
 }
 
-/** @type {() => Promise<Collection.OmitBase<Collection.Contingent>>} */
-async function validContingent() {
+/**
+ * @param {string} [id]
+ * @returns {Promise<Collection.OmitBase<Collection.Contingent>>}
+ */
+async function validContingent(id) {
   const options = (await config()).input.contingent
-  const code = crypto.randomInt(1000).toString()
+  const code = id ?? crypto.randomInt(1000).toString()
   const { error, value } = contingentSchema
     .full(options)
-    .validate({ code, desc: code })
+    .validate({ code, desc: crypto.randomBytes(64).toString('utf-8') })
   if (error) {
     throw error
   } else {
@@ -49,9 +51,9 @@ async function validEmployee() {
   const options = (await config()).input.employee
   const { error, value } = employeeSchema.full(options).validate({
     birthdate: new Date(),
-    firstname: 'firstname',
-    lastname: 'lastname',
-    middlename: 'middlename',
+    firstname: 'Имя',
+    lastname: 'Фамилия',
+    middlename: 'Отчество',
     password: '1234567890',
     sex: 'm'
   })
