@@ -177,7 +177,7 @@ declare global {
       /** Instance of message logger. */
       logger: pino.Logger;
       /** Database document of authenticated user. */
-      user: User;
+      user: Partial<User>;
     }
 
     interface Response {

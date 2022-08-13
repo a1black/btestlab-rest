@@ -58,7 +58,7 @@ async function application() {
     // load routing
     router(config, app)
     // Attach error handlers
-    app.use([joiErrorHandler, mongoErrorHandler, jsonErrorRequestHandler])
+    app.use(joiErrorHandler, mongoErrorHandler, jsonErrorRequestHandler)
 
     return [
       app,

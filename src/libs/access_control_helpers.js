@@ -12,16 +12,19 @@ const { capitalize, objectSetShallow } = require('./functional_helpers')
 /** @type {() => RequestHandler} Returns middleware that loads user using id in the access token. */
 function fetchUserRequestHandler() {
   return async (req, res, next) => {
-    const user = req.auth?.sub
-      ? await userProvider(req.auth.sub, { source: req.context.db })
-      : null
-    const error = !user && req.auth?.sub ? createHttpError(401) : undefined
+    const token = req.auth
+
+    const user = token?.sub
+      ? await userProvider.registrated(token.sub, { source: req.context.db })
+      : token
+      ? userProvider.anonymous(token)
+      : undefined
 
     if (user) {
       req.user = user
     }
 
-    next(error)
+    next(user ? undefined : createHttpError(401))
   }
 }
 

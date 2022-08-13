@@ -96,7 +96,7 @@ class EmployeeDataAccessor {
           $replaceWith: {
             $mergeObjects: [
               doc,
-              { _id: '$_id', ctime: '$ctiem', password: '$password' }
+              { _id: '$_id', ctime: '$ctime', password: '$password' }
             ]
           }
         },

@@ -19,7 +19,7 @@ const {
 const dataAccessor = req => employeeDataAccessor(req.context.db)
 /** @type {(req: Request) => Collection.InferIdType<Collection.Employee>} */
 // @ts-ignore
-const idParam = req => req.params.code
+const idParam = req => req.params.id
 
 /** @type {RequestHandler} Insert new document in the database. */
 async function createEmployee(req, res) {

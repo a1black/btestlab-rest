@@ -12,29 +12,22 @@ const {
 const { serviceCodeErrorHandler } = require('../../libs/error_handlers')
 
 /** @type {express.RequestHandler} */
-const isAdmin = (req, res, next) => {
+function isAdmin(req, res, next) {
   next(req.user?.admin === true ? undefined : createHttpError(403))
 }
+
 /** @type {express.RequestHandler} */
-const isAdminOrMyself = (req, res, next) => {
+function isAdminOrOwner(req, res, next) {
+  const admin = req.user?.admin === true
   // @ts-ignore
-  const /** @type {Collection.InferIdType<User>} */ idParam = req.params.id
-  next(
-    req.user?.admin === true || (idParam && idParam === req.user?._id)
-      ? undefined
-      : createHttpError(403)
-  )
-}
-/** @type {express.RequestHandler} */
-const notMyself = (req, res, next) => {
-  // @ts-ignore
-  const /** @type {Collection.InferIdType<User>} */ idParam = req.params.id
-  next(idParam && idParam === req.user?._id ? createHttpError(403) : undefined)
+  const owner = req.user?._id && req.user._id === req.params.id
+
+  next(admin || owner ? undefined : createHttpError(403))
 }
 
 /** @type {(config: ApplicationConfiguration) => express.IRouter} */
-function employeeRouter(config) {
-  return express
+module.exports = config =>
+  express
     .Router()
     .param('id', (req, res, next, id) => {
       const { error, value } = Joi.number()
@@ -46,23 +39,20 @@ function employeeRouter(config) {
       next(error ? createHttpError(404) : undefined)
     })
     .use(verifyJwt(config.accessToken), fetchUser())
-    .delete('/:id', isAdmin, notMyself, employeeController.deleteEmployee)
+    .delete('/:id', isAdminOrOwner, employeeController.deleteEmployee)
     .get('/:id', employeeController.readEmployee)
     .get('/', employeeController.listEmployees)
     .post('/', isAdmin, express.json(), employeeController.createEmployee)
     .put(
       '/:id/password',
-      isAdminOrMyself,
+      isAdminOrOwner,
       express.json(),
       employeeController.updateEmployeePassword
     )
     .put(
       '/:id',
-      isAdminOrMyself,
+      isAdminOrOwner,
       express.json(),
       employeeController.updateEmployee
     )
     .use(serviceCodeErrorHandler('employee'))
-}
-
-module.exports = employeeRouter

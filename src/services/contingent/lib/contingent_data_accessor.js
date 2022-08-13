@@ -100,6 +100,12 @@ class ContingentDataAccessor {
   }
 }
 
-/** @type {(db: mongodb.Db) => ContingentDataAccessor} */
+/**
+ * @param {mongodb.Db} db Instance of database.
+ * @returns {ContingentDataAccessor} Collection data provider.
+ */
 module.exports = db =>
   new ContingentDataAccessor(db, CollectionNameEnum.CONTINGENT)
+/** @type {typeof isDuplicateMongoError} */
+module.exports.isDuplicateError = (error, ...keys) =>
+  isDuplicateMongoError(error, ...keys)
