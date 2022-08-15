@@ -19,10 +19,6 @@ const {
   collapseSpacesCustomRule
 } = require('../../../libs/joi_schema_helpers')
 
-function lpuCodeSchema() {
-  return Joi.number().integer().positive().max(Number.MAX_SAFE_INTEGER)
-}
-
 /**
  * @param {{ maxLength: number }} options Validation options.
  * @returns {Joi.StringSchema} A schema object to validate short and full organization name.
@@ -41,14 +37,17 @@ function lpuNameSchema(options) {
  */
 function lpuSchema(options) {
   return Joi.object({
-    code: lpuCodeSchema().required(),
-    dep: lpuCodeSchema().optional(),
+    code: Joi.number()
+      .integer()
+      .positive()
+      .max(Number.MAX_SAFE_INTEGER)
+      .optional(),
+    abbr: lpuNameSchema(options.abbr).required(),
+    name: lpuNameSchema(options.name).optional(),
     opf: lpuNameSchema(options.opf)
       .uppercase()
       .pattern(options.opf.pattern)
-      .required(),
-    abbr: lpuNameSchema(options.abbr).required(),
-    name: lpuNameSchema(options.name).required()
+      .required()
   })
     .required()
     .prefs(baseValidationOptions())

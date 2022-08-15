@@ -150,10 +150,10 @@ declare global {
 
     interface Lpu extends BaseDocument {
       _id: number;
+      _hash: string;
       abbr: string;
-      code: number;
-      dep?: number;
-      name: string;
+      code?: number;
+      name?: string;
       opf: string;
       xtime?: Date;
     }

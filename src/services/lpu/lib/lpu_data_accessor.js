@@ -7,12 +7,10 @@
  */
 
 const { CollectionNameEnum } = require('../../../globals')
+const { hashLpuName } = require('./lpu_helper_functions')
 const {
-  dateWithoutTime,
   generateId,
-  isDuplicateMongoError,
-  queryExisted,
-  queryDeleted
+  isDuplicateMongoError
 } = require('../../../libs/mongodb_helpers')
 
 const DEFAULT_INSERT_ATTEMPTS = 3
@@ -37,16 +35,14 @@ class LpuDataAccessor {
   activate(id, active) {
     return this.collection
       .updateOne(
-        queryExisted({ _id: id }),
-        active
-          ? { $unset: { xtime: 1 } }
-          : { $set: { xtime: dateWithoutTime() } }
+        { _id: id },
+        active ? { $unset: { xtime: 1 } } : { $set: { xtime: new Date() } }
       )
       .then(res => res.matchedCount === 1)
   }
 
   /**
-   * @param {Collection.OmitBase<Collection.Lpu>} doc New document to insert in the database.
+   * @param {Collection.OmitBase<Collection.Lpu, "_hash">} doc New document to insert in the database.
    * @param {{ attempts?: number, length: number, prefix: number }} options Document creation options.
    * @returns {Promise<Collection.InferIdType<Collection.Lpu>>} Document's primary key.
    */
@@ -56,7 +52,8 @@ class LpuDataAccessor {
     try {
       const { insertedId } = await this.collection.insertOne({
         _id: generateId({ length, prefix }),
-        ctime: dateWithoutTime(),
+        _hash: hashLpuName(doc.abbr),
+        ctime: new Date(),
         ...doc
       })
 
@@ -79,16 +76,19 @@ class LpuDataAccessor {
     }
   }
 
-  /** @type {typeof isDuplicateMongoError} */
-  isDuplicateError(error, ...keys) {
-    return isDuplicateMongoError(error, ...keys)
+  /**
+   * @param {Collection.Lpu["_hash"]} hash Value of unique index.
+   * @returns {Promise<Collection.Lpu?>} Matched document or `null`.
+   */
+  findByHash(hash) {
+    return this.collection.findOne({ _hash: hash })
   }
 
   /**
    * @returns {LpuFindCursor} Cursor over existing (non-deleted) documents in the collection.
    */
   list() {
-    return this.collection.find(queryExisted({})).sort({ code: 1, dep: 1 })
+    return this.collection.find({})
   }
 
   /**
@@ -96,48 +96,27 @@ class LpuDataAccessor {
    * @returns {Promise<Collection.Lpu?>} Matched document or `null`.
    */
   read(id) {
-    return this.collection.findOne(queryExisted({ _id: id }))
-  }
-
-  /**
-   * @param {Collection.InferIdType<Collection.Lpu> | Pick<Collection.Lpu, "code" | "dep">} key Unique key for searching document.
-   * @returns {Promise<Collection.Lpu?>} Matched document or `null`.
-   */
-  readDeleted(key) {
-    return this.collection.findOne(
-      queryDeleted(
-        typeof key === 'number'
-          ? { _id: key }
-          : { code: key.code, dep: key.dep ?? { $exists: false } }
-      )
-    )
+    return this.collection.findOne({ _id: id })
   }
 
   /**
    * @param {Collection.InferIdType<Collection.Lpu>} id Document's primary key.
-   * @returns {Promise<boolean>} `true` if matching document is found, `false` otherwise.
-   */
-  remove(id) {
-    return this.collection
-      .updateOne(queryExisted({ _id: id }), {
-        $set: { dtime: dateWithoutTime() }
-      })
-      .then(res => res.matchedCount === 1)
-  }
-
-  /**
-   * @param {Collection.InferIdType<Collection.Lpu>} id Document's primary key.
-   * @param {Collection.OmitBase<Collection.Lpu>} doc Replacement data.
+   * @param {Collection.OmitBase<Collection.Lpu, "_hash">} doc Replacement data.
    * @returns {Promise<boolean>} `true` if matching document is found, `false` otherwise.
    */
   replace(id, doc) {
     return this.collection
-      .updateOne(queryExisted({ _id: id }), [
+      .updateOne({ _id: id }, [
         {
           $replaceWith: {
             $mergeObjects: [
               doc,
-              { _id: '$_id', ctime: '$ctiem', xtime: '$xtime' }
+              {
+                _id: '$_id',
+                _hash: hashLpuName(doc.abbr),
+                ctime: '$ctime',
+                xtime: '$xtime'
+              }
             ]
           }
         },
@@ -145,19 +124,13 @@ class LpuDataAccessor {
       ])
       .then(res => res.matchedCount === 1)
   }
-
-  /**
-   * Removes 'deleted' status from a document.
-   *
-   * @param {Collection.InferIdType<Collection.Lpu>} id Document's primary key.
-   * @returns {Promise<boolean>} `true` if matching document is found, `false` otherwise.
-   */
-  restore(id) {
-    return this.collection
-      .updateOne(queryDeleted({ _id: id }), { $unset: { dtime: 1 } })
-      .then(res => res.matchedCount === 1)
-  }
 }
 
-/** @type {(db: mongodb.Db) => LpuDataAccessor} */
+/**
+ * @param {mongodb.Db} db Instance of database.
+ * @returns {LpuDataAccessor} Collection data provider.
+ */
 module.exports = db => new LpuDataAccessor(db, CollectionNameEnum.LPU)
+/** @type {typeof isDuplicateMongoError} */
+module.exports.isDuplicateError = (error, ...keys) =>
+  isDuplicateMongoError(error, ...keys)

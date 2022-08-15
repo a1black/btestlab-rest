@@ -20,39 +20,21 @@ const idParam = req => req.params.id
 
 /** @type {RequestHandler} Insert new document in the database. */
 async function createLpu(req, res) {
+  /**@type {Collection.OmitBase<Collection.Lpu, "_hash">} */
   const doc = joiValidate(req.body, lpuSchema.base(req.config('input.lpu')))
   const collection = dataAccessor(req)
 
-  try {
-    const id = await collection.create(doc, req.config('genops.lpuId'))
+  const id = await collection.create(
+    { xtime: new Date(), ...doc },
+    req.config('genops.lpuId')
+  )
 
-    res.json({ id })
-  } catch (error) {
-    if (collection.isDuplicateError(error, 'code')) {
-      const deletedDoc = await collection.readDeleted(doc)
-      if (deletedDoc) {
-        // TODO: Response error must provide a way to restore deleted document.
-      }
-
-      throw error
-    }
-  }
+  res.json({ id })
 }
 
 /** @type {RequestHandler} Flags requested document as inactive. */
 async function deactivateLpu(req, res) {
   const success = await dataAccessor(req).activate(idParam(req), false)
-
-  if (!success) {
-    throw createHttpError(404)
-  } else {
-    res.sendOk()
-  }
-}
-
-/** @type {RequestHandler} Flags requested document as deleted. */
-async function deleteLpu(req, res) {
-  const success = await dataAccessor(req).remove(idParam(req))
 
   if (!success) {
     throw createHttpError(404)
@@ -93,19 +75,9 @@ async function readLpu(req, res) {
   }
 }
 
-/** @type {RequestHandler} Restores deleted document to its previous state. */
-async function restoreLpu(req, res) {
-  const success = await dataAccessor(req).restore(idParam(req))
-
-  if (!success) {
-    throw createHttpError(404)
-  } else {
-    res.sendOk()
-  }
-}
-
 /** @type {RequestHandler} Replaces data of an existing document with recieved one. */
 async function updateLpu(req, res) {
+  /**@type {Collection.OmitBase<Collection.Lpu, "_hash">} */
   const doc = joiValidate(req.body, lpuSchema.base(req.config('input.lpu')))
 
   const success = await dataAccessor(req).replace(idParam(req), doc)
@@ -120,10 +92,8 @@ async function updateLpu(req, res) {
 module.exports = {
   createLpu,
   deactivateLpu,
-  deleteLpu,
   listLpus,
   reactivateLpu,
   readLpu,
-  restoreLpu,
   updateLpu
 }
