@@ -26,7 +26,26 @@ function invalidEmployee() {
 
 /** @type {() => Partial<Record<keyof Collection.Lpu, any>>} */
 function invalidLpu() {
-  return { abbr: '', code: 1.2, dep: 'not number', name: '', opf: '' }
+  return { abbr: '', code: 'not number', name: '', opf: '' }
+}
+
+/**
+ * @param {{ locale?: string, size?: number }} [options]
+ * @returns {string}
+ */
+function randomString(options) {
+  const { locale = 'en', size = 8 } = options ?? {}
+  const alphabet =
+    locale === 'ru'
+      ? 'абвгдезжиклмнопрстуфхцчшщыьэюя'
+      : 'abcdefghijklmnopqrstuvwxyz'
+
+  const result = []
+  for (let i = 0; i < size; i++) {
+    result.push(alphabet.charAt(Math.floor(Math.random() * alphabet.length)))
+  }
+
+  return result.join('')
 }
 
 /**
@@ -36,9 +55,11 @@ function invalidLpu() {
 async function validContingent(id) {
   const options = (await config()).input.contingent
   const code = id ?? crypto.randomInt(1000).toString()
-  const { error, value } = contingentSchema
-    .full(options)
-    .validate({ code, desc: crypto.randomBytes(64).toString('utf-8') })
+  const { error, value } = contingentSchema.full(options).validate({
+    code,
+    desc: randomString({ locale: 'ru', size: 32 })
+  })
+
   if (error) {
     throw error
   } else {
@@ -51,12 +72,13 @@ async function validEmployee() {
   const options = (await config()).input.employee
   const { error, value } = employeeSchema.full(options).validate({
     birthdate: new Date(),
-    firstname: 'Имя',
-    lastname: 'Фамилия',
-    middlename: 'Отчество',
-    password: '1234567890',
-    sex: 'm'
+    firstname: randomString({ locale: 'ru', size: 16 }),
+    lastname: randomString({ locale: 'ru', size: 16 }),
+    middlename: randomString({ locale: 'ru', size: 16 }),
+    password: randomString({ locale: 'en', size: 8 }),
+    sex: Math.random() > 0.5 ? 'f' : 'm'
   })
+
   if (error) {
     throw error
   } else {
@@ -68,12 +90,12 @@ async function validEmployee() {
 async function validLpu() {
   const options = (await config()).input.lpu
   const { error, value } = lpuSchema.base(options).validate({
-    abbr: 'abbr',
+    abbr: randomString({ locale: 'ru', size: 16 }),
     code: crypto.randomInt(1000),
-    dep: crypto.randomInt(1000),
-    name: 'name',
-    opf: 'опф'
+    name: randomString({ locale: 'ru', size: 32 }),
+    opf: randomString({ locale: 'ru', size: 8 })
   })
+
   if (error) {
     throw error
   } else {
@@ -85,6 +107,7 @@ module.exports = {
   invalidContingent,
   invalidEmployee,
   invalidLpu,
+  randomString,
   validContingent,
   validEmployee,
   validLpu

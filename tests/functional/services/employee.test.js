@@ -139,33 +139,6 @@ describe('employee.create', () => {
     expect(response.status).toBe(200)
     expect(response.body).toMatchObject({ id: expect.any(Number) })
   })
-
-  test('duplicate document, expect 409', async () => {
-    const auth = await generateAccessToken(true)
-    const doc = await validEmployee()
-    const [request] = await requestProvider()
-
-    const response = await request
-      .post(urlpath())
-      .auth(...auth)
-      .send(doc)
-    expect(response.status).toBe(200)
-
-    const duplicateRes = await request
-      .post(urlpath())
-      .auth(...auth)
-      .send(doc)
-
-    expect(duplicateRes.status).toBe(409)
-    expect(duplicateRes.body).toMatchObject({
-      errors: {
-        birthdate: expect.anything(),
-        firstname: expect.anything(),
-        lastname: expect.anything(),
-        middlename: expect.anything()
-      }
-    })
-  })
 })
 
 describe('employee.delete', () => {
@@ -193,6 +166,7 @@ describe('employee.delete', () => {
       .send()
 
     expect(response.status).toBe(404)
+    expect(response.body).toMatchObject({ message: expect.any(String) })
   })
 
   test('delete existing document, expect 200', async () => {
@@ -261,6 +235,7 @@ describe('employee.read', () => {
       .send()
 
     expect(response.status).toBe(404)
+    expect(response.body).toMatchObject({ message: expect.any(String) })
   })
 
   test('read existing document, expect 200', async () => {
@@ -379,5 +354,85 @@ describe('employee.update', () => {
       })
     })
     expect(readRes.body.doc.modified > readRes.body.doc.created).toBeTruthy()
+  })
+})
+
+describe('duplicate employee', () => {
+  const requestProvider = requestFactory()
+
+  beforeAll(async () => {
+    await requestProvider()
+  })
+
+  afterAll(async () => {
+    const [, teardown] = await requestProvider()
+    await teardown()
+  })
+
+  afterEach(async () => {
+    await clearCollection(CollectionNameEnum.EMPLOYEE)
+  })
+
+  test('duplicate on create, expect 409', async () => {
+    const auth = await generateAccessToken(true)
+    const doc = await validEmployee()
+    const [request] = await requestProvider()
+
+    const createRes = await request
+      .post(urlpath())
+      .auth(...auth)
+      .send(doc)
+    expect(createRes.status).toBe(200)
+
+    const response = await request
+      .post(urlpath())
+      .auth(...auth)
+      .send(doc)
+
+    expect(response.status).toBe(409)
+    expect(response.body).toMatchObject({
+      errors: {
+        birthdate: expect.anything(),
+        firstname: expect.anything(),
+        lastname: expect.anything(),
+        middlename: expect.anything()
+      }
+    })
+  })
+
+  test('duplicate on update, expect 409', async () => {
+    const auth = await generateAccessToken(true)
+    const firstDoc = await validEmployee()
+    const secondDoc = await validEmployee()
+    const [request] = await requestProvider()
+
+    const firstCreateRes = await request
+      .post(urlpath())
+      .auth(...auth)
+      .send(firstDoc)
+    expect(firstCreateRes.status).toBe(200)
+    expect(firstCreateRes.body).toMatchObject({ id: expect.anything() })
+
+    const secondCreateRes = await request
+      .post(urlpath())
+      .auth(...auth)
+      .send(secondDoc)
+    expect(secondCreateRes.status).toBe(200)
+    expect(secondCreateRes.body).toMatchObject({ id: expect.anything() })
+
+    const updateRes = await request
+      .put(urlpath(secondCreateRes.body.id))
+      .auth(...auth)
+      .send(firstDoc)
+
+    expect(updateRes.status).toBe(409)
+    expect(updateRes.body).toMatchObject({
+      errors: expect.objectContaining({
+        birthdate: expect.anything(),
+        firstname: expect.anything(),
+        lastname: expect.anything(),
+        middlename: expect.anything()
+      })
+    })
   })
 })
