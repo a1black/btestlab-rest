@@ -98,12 +98,12 @@ module.exports = (err, req, res, next) => {
   } else {
     next(
       createHttpError(400, 'Document Failed Validation', {
-        response: {
+        response: Object.assign(err.response ?? {}, {
           errors: processErrorMessages(err.details ?? [], {
             i18n: i18nHelper(req.i18n),
             service: err.serviceCode
           })
-        }
+        })
       })
     )
   }

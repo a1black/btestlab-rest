@@ -7,14 +7,10 @@ const express = require('express')
 const employeeController = require('./employee_controller')
 const {
   fetchUserRequestHandler: fetchUser,
+  isAdminRequestHandler: isAdmin,
   verifyJwtRequestHandler: verifyJwt
 } = require('../../libs/access_control_helpers')
 const { serviceCodeErrorHandler } = require('../../libs/error_handlers')
-
-/** @type {express.RequestHandler} */
-function isAdmin(req, res, next) {
-  next(req.user?.admin === true ? undefined : createHttpError(403))
-}
 
 /** @type {express.RequestHandler} */
 function isAdminOrOwner(req, res, next) {

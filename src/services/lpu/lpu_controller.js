@@ -21,7 +21,10 @@ const idParam = req => req.params.id
 /** @type {RequestHandler} Insert new document in the database. */
 async function createLpu(req, res) {
   /**@type {Collection.OmitBase<Collection.Lpu, "_hash">} */
-  const doc = joiValidate(req.body, lpuSchema.base(req.config('input.lpu')))
+  const doc = joiValidate(
+    req.body ?? {},
+    lpuSchema.base(req.config('input.lpu'))
+  )
   const collection = dataAccessor(req)
 
   const id = await collection.create(
@@ -78,7 +81,10 @@ async function readLpu(req, res) {
 /** @type {RequestHandler} Replaces data of an existing document with recieved one. */
 async function updateLpu(req, res) {
   /**@type {Collection.OmitBase<Collection.Lpu, "_hash">} */
-  const doc = joiValidate(req.body, lpuSchema.base(req.config('input.lpu')))
+  const doc = joiValidate(
+    req.body ?? {},
+    lpuSchema.base(req.config('input.lpu'))
+  )
 
   const success = await dataAccessor(req).replace(idParam(req), doc)
 

@@ -21,7 +21,7 @@ const idParam = req => req.params.code
 async function createContingent(req, res) {
   /** @type {Collection.OmitBase<Collection.Contingent>} */
   const doc = joiValidate(
-    req.body,
+    req.body ?? {},
     contingentSchema.full(req.config('input.contingent'))
   )
 
@@ -76,7 +76,7 @@ async function readContingentHistory(req, res) {
 async function updateContingent(req, res) {
   /** @type {Collection.OmitBase<Collection.Contingent, "code">} */
   const doc = joiValidate(
-    req.body,
+    req.body ?? {},
     contingentSchema.base(req.config('input.contingent'))
   )
 

@@ -25,7 +25,7 @@ const idParam = req => req.params.id
 async function createEmployee(req, res) {
   /** @type {Collection.OmitBase<Collection.Employee, "admin">} */
   const doc = joiValidate(
-    req.body,
+    req.body ?? {},
     employeeSchema.full(req.config('input.employee'))
   )
 
@@ -96,7 +96,7 @@ async function updateEmployee(req, res) {
 async function updateEmployeePassword(req, res) {
   /** @type {Required<Pick<Collection.Employee, "password">>} */
   const doc = joiValidate(
-    req.body,
+    req.body ?? {},
     employeeSchema.password(req.config('input.employee'))
   )
 

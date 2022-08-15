@@ -52,7 +52,10 @@ module.exports = (err, req, res, next) => {
   } else if (isDuplicateMongoError(err)) {
     next(
       createHttpError(409, 'Document Already Exists', {
-        response: processDuplicateError(err, req.i18n())
+        response: Object.assign(
+          err.response ?? {},
+          processDuplicateError(err, req.i18n())
+        )
       })
     )
   } else {

@@ -8,14 +8,10 @@ const lpuController = require('./lpu_controller')
 const duplicateErrorHandler = require('./lib/lpu_duplicate_error_handler')
 const {
   fetchUserRequestHandler: fetchUser,
+  isAdminRequestHandler: isAdmin,
   verifyJwtRequestHandler: verifyJwt
 } = require('../../libs/access_control_helpers')
 const { serviceCodeErrorHandler } = require('../../libs/error_handlers')
-
-/** @type {express.RequestHandler} */
-function isAdmin(req, res, next) {
-  next(req.user?.admin === true ? undefined : createHttpError(403))
-}
 
 /** @type {(config: ApplicationConfiguration) => express.IRouter} */
 module.exports = config =>

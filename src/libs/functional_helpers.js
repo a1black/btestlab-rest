@@ -37,7 +37,9 @@ function objectSet(obj, path, value) {
       ? [path.toString()]
       : path
 
-  if (!rest.length) {
+  if (prop === undefined) {
+    return
+  } else if (!rest.length) {
     obj[prop] = value
     return
   } else if (!Object.hasOwn(obj, prop)) {

@@ -46,6 +46,11 @@ function generateUserJwt(user, options) {
   return jwt.sign(payload, secret, jwtops)
 }
 
+/** @type {RequestHandler} Returns middleware that authenticated user has admin privileges. */
+function isAdminRequestHandler(req, res, next) {
+  next(req.user?.admin === true ? undefined : createHttpError(403))
+}
+
 /**
  * Returns middleware that verifies access token recieved with HTTP request.
  *
@@ -65,5 +70,6 @@ function verifyJwtRequestHandler(options) {
 module.exports = {
   fetchUserRequestHandler,
   generateUserJwt,
+  isAdminRequestHandler,
   verifyJwtRequestHandler
 }
