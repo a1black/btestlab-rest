@@ -15,6 +15,14 @@ class CollectionNameEnum extends Enum {
   static USER = 'employee'
 }
 
+class SexEnum extends Enum {
+  /** @type {"f"} */
+  static FEMALE = 'f'
+  /** @type {"m"} */
+  static MALE = 'm'
+}
+
 module.exports = {
-  CollectionNameEnum
+  CollectionNameEnum,
+  SexEnum
 }

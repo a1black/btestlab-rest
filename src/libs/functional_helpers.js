@@ -14,6 +14,15 @@ function dateToShortISOString(date) {
   return date?.toISOString().split('T')[0]
 }
 
+/** @type {(value: any) => boolean} Returns `true` if argument is plain object. */
+function isObject(value) {
+  return (
+    value !== undefined &&
+    value !== null &&
+    Object.getPrototypeOf(Object.getPrototypeOf(value)) === null
+  )
+}
+
 /** @type {(obj: Dict<any>, prop: string, value?: any) => void} Adds property to a target object if value is not Null. */
 function objectSetShallow(obj, prop, value) {
   if (value !== undefined && value !== null) {
@@ -34,16 +43,16 @@ function objectSet(obj, path, value) {
     typeof path === 'string'
       ? path.split('.')
       : !Array.isArray(path)
-      ? [path.toString()]
+      ? [path]
       : path
 
-  if (prop === undefined) {
-    return
-  } else if (!rest.length) {
+  if (!rest.length) {
     obj[prop] = value
     return
   } else if (!Object.hasOwn(obj, prop)) {
     obj[prop] = {}
+  } else if (!isObject(obj[prop])) {
+    return
   }
 
   return objectSet(obj[prop], rest, value)
@@ -52,6 +61,7 @@ function objectSet(obj, path, value) {
 module.exports = {
   capitalize,
   dateToShortISOString,
+  isObject,
   objectSet,
   objectSetShallow
 }

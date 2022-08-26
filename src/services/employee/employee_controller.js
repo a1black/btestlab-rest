@@ -75,6 +75,7 @@ async function readEmployee(req, res) {
   }
 }
 
+// TODO: rename method to `replace`
 /** @type {RequestHandler} Updates data of an existing document. */
 async function updateEmployee(req, res) {
   /** @type {Collection.OmitBase<Collection.Employee, "password">} */

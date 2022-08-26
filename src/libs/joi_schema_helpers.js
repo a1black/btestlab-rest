@@ -25,9 +25,9 @@ function baseValidationOptions(options) {
   )
 }
 
-/** Returns a schema object ot match empty or blank string. */
+/** Returns a schema object to match empty or blank string. */
 function blankStringSchema() {
-  return Joi.string().allow('').pattern(/^\s+$/)
+  return Joi.string().allow(null, '').pattern(/^\s+$/)
 }
 
 /**

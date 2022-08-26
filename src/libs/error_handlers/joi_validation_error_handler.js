@@ -48,35 +48,55 @@ function processErrorMessages(errors, { i18n, service }) {
 
   for (const error of errors) {
     const /** @type {InterpolationOptions} */ intrParams = {}
-    const { context = {}, path, type } = error
+    const { context = {}, type } = error
+    const path = error.path.slice()
 
     if (type === 'any.ref') {
       // Skip error by association
+      continue
+    } else if (type === 'object.with' && typeof context.peer === 'string') {
+      errors.push({
+        message: 'any.required',
+        context: { key: context.peer },
+        path: path.concat([context.peer]),
+        type: 'any.required'
+      })
+      // Skip aggregated error
       continue
     } else if (type === 'any.invalid') {
       intrParams.invalids = arrToStr(', ', context.invalids)
     } else if (type === 'any.only') {
       intrParams.valids = arrToStr(', ', context.valids)
-    } else if (type.startsWith('date.')) {
-      if (typeof context.format === 'string') {
-        intrParams.format = joiI18n(
-          { _: context.format },
-          'date._vars',
-          context.format
-        )
-      }
-      if (context.limit instanceof Date) {
-        intrParams.limit = dateToShortISOString(context.limit)
-      } else if (typeof context.limit === 'string') {
-        intrParams.limit = joiI18n(
-          { _: context.limit },
-          'date._vars',
-          context.limit
-        )
-      }
+    } else if (type === 'date.format' && typeof context.format === 'string') {
+      intrParams.format = joiI18n(
+        { _: context.format },
+        'date._vars',
+        context.format
+      )
+    } else if (type === 'array.sparse') {
+      // Remove index of `null` element in the validated array.
+      path.pop()
+    }
+
+    if (typeof context.limit === 'string' && type.startsWith('date.')) {
+      // Limit is date string `now`
+      intrParams.limit = joiI18n(
+        { _: context.limit },
+        'date._vars',
+        context.limit
+      )
     } else if (typeof context.limit === 'number') {
-      intrParams.limit = context.limit.toString()
+      intrParams.limit = context.limit
       intrParams.smart_count = context.limit
+    } else if (context.limit instanceof Date) {
+      intrParams.limit = dateToShortISOString(context.limit)
+    } else if (Array.isArray(context.limit?.path)) {
+      // Limit rule is a reference to another field, limit value is path
+      intrParams.limit = errorI18n(
+        { _: context.limit.path.join('.') },
+        '_vars',
+        ...context.limit.path
+      )
     }
 
     const message =

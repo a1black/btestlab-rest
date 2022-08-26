@@ -15,6 +15,7 @@
 
 const Joi = require('joi')
 
+const { SexEnum } = require('../../../globals')
 const {
   baseValidationOptions,
   blankStringSchema,
@@ -67,7 +68,10 @@ function employeeSchema(options) {
     firstname: employeeNameSchema(options.name).required(),
     lastname: employeeNameSchema(options.name).required(),
     middlename: employeeNameSchema(options.name).required(),
-    sex: Joi.string().empty(blankStringSchema()).valid('f', 'm').required()
+    sex: Joi.string()
+      .empty(blankStringSchema())
+      .valid(...SexEnum)
+      .required()
   })
     .required()
     .prefs(baseValidationOptions())

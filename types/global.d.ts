@@ -1,6 +1,5 @@
 import Polyglot = require("node-polyglot");
 import express = require("express");
-import http = require("http");
 import jwt = require("jsonwebtoken");
 import mongodb = require("mongodb");
 import pino = require("pino");
@@ -88,6 +87,7 @@ declare global {
     };
   };
   type I18nFactoryFunction = (options?: Polyglot.PolyglotOptions) => Polyglot;
+  type SexValue = "f" | "m";
 
   interface ApplicationContext {
     client: mongodb.MongoClient;
@@ -145,7 +145,7 @@ declare global {
       lastname: string;
       middlename: string;
       password?: string;
-      sex: string;
+      sex: SexValue;
     }
 
     interface Lpu extends BaseDocument {
