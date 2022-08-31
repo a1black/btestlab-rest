@@ -196,7 +196,7 @@ describe('limit rule validation error', () => {
 
     errorHandler(error, stabReq(t), stabRes(), next)
 
-    expect(t).toHaveBeenNthCalledWith(1, 'error._vars.ref', expect.anything())
+    expect(t).toHaveBeenNthCalledWith(1, 'error._limits.ref', expect.anything())
     i18nCallStackFixture(t, { limit: expect.any(String) }, { error, shift: 1 })
     nextCallFixture(next, { error })
   })
@@ -220,5 +220,42 @@ describe('object validation error', () => {
 
     i18nCallStackFixture(t, {}, { path, type: 'any.required' })
     nextCallFixture(next, { path })
+  })
+
+  test('or rule', () => {
+    const next = jest.fn()
+    const t = mockT()
+    const { error } = Joi.object({
+      obj: Joi.object({
+        peerOne: Joi.any(),
+        peerTwo: Joi.any()
+      }).or('peerOne', 'peerTwo')
+    }).validate({ obj: {} })
+
+    expect(error).not.toBeUndefined()
+
+    errorHandler(error, stabReq(t), stabRes(), next)
+
+    expect(t).toHaveBeenNthCalledWith(1, 'joi.any.missing', expect.anything())
+    expect(t).toHaveBeenNthCalledWith(2, expect.stringMatching(/^error\.obj\.peer/), expect.anything())
+    expect(t).toHaveBeenNthCalledWith(3, 'error.invalid', expect.anything())
+    expect(t).toHaveBeenNthCalledWith(4, 'joi.any.missing', expect.anything())
+    expect(t).toHaveBeenNthCalledWith(5, expect.stringMatching(/^error\.obj\.peer/), expect.anything())
+    expect(t).toHaveBeenNthCalledWith(6, 'error.invalid', expect.anything())
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.any(String),
+        status: 400,
+        response: {
+          errors: {
+            obj: expect.objectContaining({
+              peerOne: expect.any(String),
+              peerTwo: expect.any(String)
+            })
+          }
+        }
+      })
+    )
   })
 })
