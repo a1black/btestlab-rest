@@ -34,6 +34,24 @@
       "pattern": "^[\\w.,:;?!*+%-@$#]+$"
     }
   },
+  "examination": {
+    "date": {
+      "min": "1900-01-01"
+    },
+    "name": {
+      "maxLength": 256,
+      "pattern": [
+        "^\\p{L}(?:\\p{L}*(?:(?<=\\p{L})[-_,.' ](?=\\p{L}))?)*$",
+        "ui"
+      ]
+    },
+    "tests": {
+      "maxSize": 10
+    },
+    "text": {
+      "maxLength": 256
+    }
+  },
   "lpu": {
     "abbr": {
       "maxLength": 128

@@ -1,11 +1,14 @@
 'use strict'
 
 /**
- * @typedef {{ regex: () => import("joi").AnySchema }} RegexSchema Generates a schema object that matches regular expression.
+ * @typedef {import("joi").AnySchema} AnySchema
+ * @typedef {{ regex: () => AnySchema }} RegexSchema Generates a schema object that matches regular expression.
+ * @typedef {{ test: () => AnySchema & { positive: () => AnySchema } }} TestSchema Generates a schema object that matches test marker.
  */
 
 const Joi = require('joi')
 
+const { TestPositiveEnum } = require('../globals')
 const { dateToShortISOString } = require('./functional_helpers')
 
 /**
@@ -25,16 +28,20 @@ function baseValidationOptions(options) {
   )
 }
 
-/** Returns a schema object to match empty or blank string. */
+/**
+ * Retruns schema to match empty or blank string.
+ *
+ * @returns {Joi.StringSchema}
+ */
 function blankStringSchema() {
-  return Joi.string().allow(null, '').pattern(/^\s+$/)
+  return Joi.string().allow('').pattern(/^\s+$/)
 }
 
 /**
  * Removes reapeting space characters from a string.
  *
- * @param {any} value String to check for repeating spaces.
- * @returns {any}
+ * @param {any} value Validated input value.
+ * @returns {any} New string without repeating spaces.
  */
 function collapseSpacesCustomRule(value) {
   return typeof value === 'string' ? value.replaceAll(/\s{2,}/g, ' ') : value
@@ -79,11 +86,57 @@ function extendJoiWithRegexSchema(joi) {
 }
 
 /**
- * @type {(value: Date) => Date} Sets time in provided date to '00:00:00.000'.
+ * Extends Joi root object with schema to match test marker.
+ *
+ * @param {Joi} [joi] Joi root object.
+ * @returns {Joi & TestSchema}
+ */
+function extendJoiWithTestSchema(joi) {
+  return (joi ?? Joi).extend(joi => ({
+    type: 'test',
+    base: joi.any(),
+    messages: {
+      'test.empty': '{{#label}} is not allowed to be empty',
+      'test.positive':
+        '{{#label}} must be either positive, negative or indetermined'
+    },
+    validate(value, { error }) {
+      if (typeof value === 'string' && value === '') {
+        return { value, errors: error('test.empty') }
+      }
+
+      return { value }
+    },
+    rules: {
+      positive: {
+        convert: true,
+        method() {
+          return this.$_addRule('positive')
+        },
+        validate(value, { error }) {
+          const result = joi
+            .number()
+            .integer()
+            .valid(...TestPositiveEnum)
+            .validate(value, { convert: true, errors: { render: false } })
+
+          return result.error ? error('test.positive') : result.value
+        }
+      }
+    }
+  }))
+}
+
+/**
+ * Sets time in provided date to '00:00:00.000'.
+ *
+ * @param {any} value Validated input value.
+ * @returns {any} New date object with redacted time.
  */
 function unsetTimeInDateCustomRule(value) {
-  // @ts-ignore
-  return value instanceof Date ? new Date(dateToShortISOString(value)) : value
+  const isoString = dateToShortISOString()
+
+  return isoString ? new Date(isoString) : value
 }
 
 module.exports = {
@@ -91,5 +144,6 @@ module.exports = {
   blankStringSchema,
   collapseSpacesCustomRule,
   extendJoiWithRegexSchema,
+  extendJoiWithTestSchema,
   unsetTimeInDateCustomRule
 }

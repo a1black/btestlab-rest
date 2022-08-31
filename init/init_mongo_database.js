@@ -13,5 +13,11 @@ db.getCollection('employee').createIndex(
   { unique: true }
 )
 
+// Create examination collectn and indexes
+db.getCollection('examination').createIndex(
+  { type: 1, 'uid.date': 1, 'uid.number': 1 },
+  { unique: true }
+)
+
 // Create lpu collection and indexes
 db.getCollection('lpu').createIndex({ _hash: 1 }, { unique: true })

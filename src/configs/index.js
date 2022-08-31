@@ -155,6 +155,9 @@ async function loadInputValidationConfig() {
           name: Joi.object({ pattern: Joi.regex().required() }),
           password: Joi.object({ pattern: Joi.regex().required() })
         }),
+        examination: Joi.object({
+          name: Joi.object({ pattern: Joi.regex().required() })
+        }),
         lpu: Joi.object({
           opf: Joi.object({ pattern: Joi.regex().required() })
         })

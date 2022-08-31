@@ -70,10 +70,13 @@ declare global {
       auth: any;
       contingent: any;
       employee: any;
+      examination: any;
       lpu: any;
     };
   };
   type Configuration = ApplicationConfiguration & HttpServerConfiguration;
+  /** Codes of supported blood examination types. */
+  type ExaminationType = "hcv" | "hiv";
   type HttpServerConfiguration = {
     db: {
       dbname: string;
@@ -88,6 +91,8 @@ declare global {
   };
   type I18nFactoryFunction = (options?: Polyglot.PolyglotOptions) => Polyglot;
   type SexValue = "f" | "m";
+  /** Value for positive/negatine examination types there: `0` - negative, `1` - positive, `-1` - indeterminate */
+  type TestPositiveType = 0 | 1 | -1;
 
   interface ApplicationContext {
     client: mongodb.MongoClient;
@@ -148,6 +153,51 @@ declare global {
       sex: SexValue;
     }
 
+    interface Examination<T = unknown> extends BaseDocument {
+      /** Contingent code. */
+      contingent: Contingent["code"];
+      /** Fullname of document creator. */
+      cuser?: {
+        firstname?: string;
+        lastname?: string;
+      };
+      /** Date of receiving test sample for examination. */
+      delivered: Date;
+      /** Date of receiving test results. */
+      examined: Date;
+      /** Region code of health facility. */
+      location: string;
+      /** Code of health facility that supplied test sample. */
+      lpu: InferIdType<Lpu>;
+      /** Fullname of an author of last modification to the document. */
+      muser?: {
+        firstname?: string;
+        lastname?: string;
+      };
+      /** Patient information. */
+      patient?: {
+        birthdate: Date;
+        firstname?: string;
+        lastname?: string;
+        middlename?: string;
+        residence?: string;
+        sex: SexValue;
+      };
+      /** Data revealed during examination. */
+      result: T;
+      /** Date of obtaining test sample. */
+      taken: Date;
+      /** First test result and all follow-up conformation tests. */
+      tests?: Array<T>;
+      /** Code of performed tests. */
+      type: ExaminationType;
+      /** Collection partition key. */
+      uid: {
+        date: Date;
+        number: number;
+      };
+    }
+
     interface Lpu extends BaseDocument {
       _id: number;
       _hash: string;
@@ -156,6 +206,31 @@ declare global {
       name?: string;
       opf: string;
       xtime?: Date;
+    }
+  }
+
+  namespace TestResult {
+    interface Hcv {
+      /** ИФА methodology. */
+      /** Total HCV antibodies marker. */
+      antihcv: TestPositiveType;
+      /** IgG antibodies marker. */
+      antihcvigg: TestPositiveType;
+      /** IgM antibodies marker. */
+      antihcvigm: TestPositiveType;
+      /** ПЦР methodology. */
+      /** RNA HCV quality marker. */
+      rnahcv: TestPositiveType;
+    }
+
+    interface Hiv {
+      /** ИФА methodology */
+      /** HIV antibodies marker. */
+      antihiv: TestPositiveType;
+      /** HIV-1 p24 antigen marker. */
+      hiv1p24ag: TestPositiveType;
+      /** Иммуноферментный анализ (ИФА). */
+      elisa: string;
     }
   }
 

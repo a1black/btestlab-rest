@@ -1,6 +1,11 @@
 'use strict'
 
-/** @type {(value?: string) => typeof value} */
+/**
+ * Capitalizes each word in a string.
+ *
+ * @param {any} value Input string.
+ * @returns {any} Capitalized string.
+ */
 function capitalize(value) {
   return typeof value === 'string'
     ? value
@@ -10,11 +15,21 @@ function capitalize(value) {
 }
 
 /** @type {(date?: Date) => string | undefined} Convert `Date` to 'YYYY-MM-DD' formated string. */
+
+/**
+ * Returns specified date as a string in 'YYYY-MM-DD' format.
+ *
+ * @param {Date} [date] Date object.
+ * @returns {string | undefined} Formatted date string.
+ */
 function dateToShortISOString(date) {
   return date?.toISOString().split('T')[0]
 }
 
-/** @type {(value: any) => boolean} Returns `true` if argument is plain object. */
+/**
+ * @param {any} value Tested value.
+ * @returns {boolean} Returns `true` if argument is plain object, `false` otherwise.
+ */
 function isObject(value) {
   return (
     value !== undefined &&
@@ -24,9 +39,18 @@ function isObject(value) {
 }
 
 /** @type {(obj: Dict<any>, prop: string, value?: any) => void} Adds property to a target object if value is not Null. */
-function objectSetShallow(obj, prop, value) {
+
+/**
+ * Sets property in the target object if its value is not `null` or `undefined`.
+ *
+ * @param {any} obj Target object.
+ * @param {string} property Property name.
+ * @param {any} value Property value.
+ * @returns {void}
+ */
+function objectSetShallow(obj, property, value) {
   if (value !== undefined && value !== null) {
-    obj[prop] = value
+    obj[property] = value
   }
 }
 
@@ -34,8 +58,8 @@ function objectSetShallow(obj, prop, value) {
  * Sets property in the object using provided path and value.
  *
  * @param {Dict<any>} obj Target object.
- * @param {Array<number | string> | number | string} path The path of the property to set.
- * @param {boolean | number | string} value The value to set.
+ * @param {Array<number | string> | number | string} path The path to the property.
+ * @param {any} value Property value.
  * @returns {void}
  */
 function objectSet(obj, path, value) {
