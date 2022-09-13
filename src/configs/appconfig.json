@@ -24,5 +24,12 @@
       "length": 6,
       "prefix": 3400
     }
+  },
+  "routes": {
+    "auth": "/auth",
+    "contingent": "/contingent",
+    "employee": "/employee",
+    "examination": "/exam",
+    "lpu": "/lpu"
   }
 }

@@ -73,6 +73,13 @@ declare global {
       examination: any;
       lpu: any;
     };
+    routes: {
+      auth: string;
+      contingent: string;
+      employee: string;
+      examination: string;
+      lpu: string;
+    };
   };
   type Configuration = ApplicationConfiguration & HttpServerConfiguration;
   /** Codes of supported blood examination types. */

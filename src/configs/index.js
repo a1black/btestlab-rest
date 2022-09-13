@@ -35,7 +35,11 @@ function mergeConfigSection(name, schema, base, ...configs) {
         cause: error
       })
     } else {
-      diffs.push(value)
+      diffs.push(
+        Object.fromEntries(
+          Object.entries(value).filter(entry => entry[1] !== undefined)
+        )
+      )
     }
   }
 
@@ -93,6 +97,7 @@ async function loadApplicationConfig() {
           prefix: JoiInteger()
         })
       }),
+      routes: Joi.object().pattern(Joi.string(), Joi.string()),
       server: Joi.object({
         env: JoiString().optional(),
         host: JoiString().ip({ cidr: 'forbidden' }).optional(),
