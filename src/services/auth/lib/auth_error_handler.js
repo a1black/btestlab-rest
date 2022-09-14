@@ -3,7 +3,7 @@
 const createHttpError = require('http-errors')
 
 const createAuthError = require('./errors')
-const { objectSet } = require('../../../libs/functional_helpers')
+const objectSet = require('../../../libs/objectset')
 
 /**
  * @param {I18nFactoryFunction} provider Function to spawn interpolation object.
@@ -25,17 +25,14 @@ module.exports = (err, req, res, next) => {
     return next(err)
   }
 
-  const /** @type {Dict<any>} */ response = {}
-
+  const response = {}
   if (err.credentials.length) {
     const i18n = i18nHelper(req.i18n)
 
-    response.errors = {}
-
     for (const key of err.credentials) {
-      objectSet(response.errors, key, i18n(key))
+      objectSet(response, 'errors.' + key, i18n(key))
     }
   }
 
-  next(createHttpError(400, { response }))
+  next(createHttpError(400, err.message, { response }))
 }

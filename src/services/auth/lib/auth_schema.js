@@ -18,17 +18,11 @@ const {
 
 /**
  * @param {LoginPasswordSchemaOptions} options Validation options.
- * @returns {Joi.ObjectSchema} A schema object to validate authentication credentials.
+ * @returns {Joi.ObjectSchema} Schema to validate authentication credentials.
  */
 function loginPasswordSchema(options) {
   return Joi.object({
-    login: Joi.string()
-      .empty(blankStringSchema())
-      .normalize()
-      .trim()
-      .lowercase()
-      .max(options.login.maxLength)
-      .required(),
+    login: Joi.number().integer().positive().required(),
     password: Joi.string()
       .empty(blankStringSchema())
       .normalize()

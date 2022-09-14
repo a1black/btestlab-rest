@@ -3,27 +3,21 @@
 const crypto = require('crypto')
 const { Buffer } = require('buffer')
 
-const {
-  capitalize,
-  dateToShortISOString
-} = require('../../../libs/functional_helpers')
-const {
-  propertySetterOfResponseData
-} = require('../../../libs/http_service_helpers')
+const dateutils = require('../../../libs/date_utils')
+const { capitalize } = require('../../../libs/utils')
+const { responseObjectSet } = require('../../../libs/http_utils')
 
 /**
- * Prepares document to be served by HTTP service.
- *
  * @param {Partial<User>} doc Instance of a database document.
  * @returns {Dict<any>} Formatted plain object.
  */
 function formatUserDoc(doc) {
-  return propertySetterOfResponseData({}, [
+  return responseObjectSet({}, [
     ['id', doc._id],
     ['firstname', capitalize(doc.firstname)],
     ['lastname', capitalize(doc.lastname)],
     ['middlename', capitalize(doc.middlename)],
-    ['birthdate', dateToShortISOString(doc.birthdate)],
+    ['birthdate', dateutils.toShortISOString(doc.birthdate)],
     ['admin', doc.admin === true]
   ])
 }

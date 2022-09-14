@@ -6,8 +6,9 @@ const authController = require('./auth_controller')
 const authErrorHandler = require('./lib/auth_error_handler')
 
 /** @type {express.RequestHandler} */
-const skipIfInternal = (req, res, next) =>
+function skipIfInternal(req, res, next) {
   next(req.isInternal() ? 'route' : undefined)
+}
 
 module.exports = () =>
   express

@@ -25,7 +25,13 @@ class UserDataAccessor {
     return this.collection
       .find()
       .sort({ lastname: 1, firstname: 1, middlename: 1 })
-      .project({ lastname: 1, firstname: 1, middlename: 1, birthdate: 1 })
+      .project({
+        admin: 1,
+        birthdate: 1,
+        firstname: 1,
+        lastname: 1,
+        middlename: 1
+      })
   }
 
   /**
