@@ -8,8 +8,8 @@
 
 const Joi = require('joi')
 
+const dateutils = require('./date_utils')
 const { TestPositiveEnum } = require('../globals')
-const { dateToShortISOString } = require('./functional_helpers')
 
 /**
  * @param {Joi.ValidationOptions} [options] Modification to base options.
@@ -131,12 +131,15 @@ function extendJoiWithTestSchema(joi) {
  * Sets time in provided date to '00:00:00.000'.
  *
  * @param {any} value Validated input value.
+ * @param {Joi.CustomHelpers} options Schem helper functions.
  * @returns {any} New date object with redacted time.
  */
-function unsetTimeInDateCustomRule(value) {
-  const isoString = dateToShortISOString()
-
-  return isoString ? new Date(isoString) : value
+function unsetTimeInDateCustomRule(value, { error }) {
+  try {
+    return dateutils.dateMidnight(value)
+  } catch (err) {
+    return error('date.base')
+  }
 }
 
 module.exports = {

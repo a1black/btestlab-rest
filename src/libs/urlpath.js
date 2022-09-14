@@ -5,21 +5,14 @@
  * @typedef {Record<string, Primitive | Array<Primitive>>} SearchParams
  */
 
+const { isBool, isNumber, isString } = require('./type_utils')
+
 /**
  * @param {any} value Value to test.
  * @returns {value is Primitive} `true` if value is boolean, number or string primitive, `false` otherwise.
  */
-function isPrimitive(value) {
-  const type = typeof value
-
-  return (
-    type === 'boolean' ||
-    type === 'number' ||
-    type === 'string' ||
-    value instanceof Boolean ||
-    value instanceof Number ||
-    value instanceof String
-  )
+function isAllowed(value) {
+  return isBool(value) || isNumber(value) || isString(value)
 }
 
 /**
@@ -30,14 +23,14 @@ function* searchParamsIterator(searchParams) {
   /** @type {(name: string, value: Array<Primitive>) => Iterable<[string, string]>} */
   function* iterArray(name, value) {
     for (const item of value) {
-      if (isPrimitive(item)) {
+      if (isAllowed(item)) {
         yield [name, item.toString()]
       }
     }
   }
 
   for (const [name, value] of Object.entries(searchParams)) {
-    if (isPrimitive(value)) {
+    if (isAllowed(value)) {
       yield [name, value.toString()]
     } else if (Array.isArray(value)) {
       yield* iterArray(name, value)
@@ -54,12 +47,12 @@ function* searchParamsIterator(searchParams) {
  */
 function urlpath(path, query) {
   if (Array.isArray(path)) {
-    if (path.some(v => !isPrimitive(v))) {
+    if (path.some(v => !isAllowed(v))) {
       throw new TypeError('The "path" argument must be of type string.')
     }
 
-    path = path.filter(isPrimitive).join('/')
-  } else if (!isPrimitive(path)) {
+    path = path.filter(isAllowed).join('/')
+  } else if (!isAllowed(path)) {
     throw new TypeError('The "path" argument must be of type string.')
   } else {
     path = path.toString()

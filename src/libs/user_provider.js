@@ -1,18 +1,19 @@
 'use strict'
 
+const objectSet = require('./objectset')
 const { CollectionNameEnum } = require('../globals')
-const { objectSetShallow } = require('./functional_helpers')
 
 /**
- * @param {Partial<Record<keyof User, any>>} data Verified data of authenticated user.
+ * @param {Partial<Record<keyof User, any>>} data Authenticated user information.
+ * @returns {Partial<User>} Instance of application user.
  */
 function anonymousUser(data) {
-  const /** @type {Partial<User>} */ user = { admin: data.admin === true }
+  const user = { admin: data.admin === true }
 
-  objectSetShallow(user, 'firstname', data.firstname?.trim() || null)
-  objectSetShallow(user, 'lastname', data.lastname?.trim() || null)
-  objectSetShallow(user, 'middlename', data.middlename?.trim() || null)
-  objectSetShallow(user, 'sex', data.sex?.trim() || null)
+  objectSet(user, 'firstname', data.firstname?.lowercase())
+  objectSet(user, 'lastname', data.lastname?.lowercase())
+  objectSet(user, 'middlename', data.middlename?.lowercase())
+  objectSet(user, 'sex', data.sex)
 
   return user
 }

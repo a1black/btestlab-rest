@@ -5,7 +5,8 @@
 const Joi = require('joi')
 const createHttpError = require('http-errors')
 
-const { dateToShortISOString, objectSet } = require('../functional_helpers')
+const dateutils = require('../date_utils')
+const objectSet = require('../objectset')
 
 /**
  * @param {I18nFactoryFunction} provider Function to spawn interpolation object.
@@ -54,7 +55,7 @@ function intlOptionsPopulationChain() {
         intl.limit = limit
         intl.smart_count = limit
       } else if (limit instanceof Date) {
-        intl.limit = dateToShortISOString(limit)
+        intl.limit = dateutils.toShortISOString(limit)
       } else {
         intl.limit = limit
       }

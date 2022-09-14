@@ -16,38 +16,11 @@ describe('empty function arguments', () => {
   })
 })
 
-describe('repeated path separators', () => {
-  test('path is a string, expect remove duplicated separetors', () => {
-    const test = '//root/path///repetitive/separator//'
-    const expected = '/root/path/repetitive/separator'
-
-    expect(urlpath(test)).toBe(expected)
-  })
-
-  test('path is an array, expect remove duplicated separetors', () => {
-    const test = ['', 'root', 'path', '', 'repetitive', '', '', 'separator', '']
-    const expected = '/root/path/repetitive/separator'
-
-    expect(urlpath(test)).toBe(expected)
-  })
-})
-
 describe('path argument', () => {
-  test.each([undefined, null, { value: 'value' }, ['value'], new Set(), new Map()])(
-    'invalid type of item in path array, raises TypeError',
-    value => {
-      // @ts-ignore
-      expect(() => urlpath(['root', value])).toThrowError(TypeError)
-    }
-  )
-
-  test.each([undefined, null, { value: 'value' }, new Set(), new Map()])(
-    'invalid argument type, raises TypeError',
-    value => {
-      // @ts-ignore
-      expect(() => urlpath(value)).toThrowError(TypeError)
-    }
-  )
+  test('nested arrays in path argument, raises TypeError', () => {
+    // @ts-ignore
+    expect(() => urlpath(['root', ['path']])).toThrowError(TypeError)
+  })
 
   test.each([
     ['string', '/string'],
@@ -55,31 +28,29 @@ describe('path argument', () => {
     [true, '/true'],
     [new Number(1), '/1'],
     [new String('string'), '/string']
-  ])('valid argument type, expect URL path', (value, expected) => {
+  ])('valid argument type (%s), expect URL path "%s"', (test, expected) => {
     // @ts-ignore
-    expect(urlpath(value)).toBe(expected)
+    expect(urlpath(test)).toBe(expected)
     // @ts-ignore
-    expect(urlpath([value])).toBe(expected)
+    expect(urlpath([test])).toBe(expected)
   })
 })
 
 describe('query argument', () => {
-  test.each([undefined, null, { value: 'value' }, new Set(), new Map()])(
-    'invalid type of parameter value, expect parameter ignored',
-    value => {
-      // @ts-ignore
-      expect(urlpath('/path', { test: value })).toBe('/path')
-    }
-  )
-
-  test.each([undefined, null, { value: 'value' }, ['value'], new Set(), new Map()])(
-    'invalid type of item in array of parameter values, expect ignore item',
-    value => {
-      // @ts-ignore
-      expect(urlpath('/path', { test: [value] })).toBe('/path')
-    }
-  )
+  test('nested arrays in query parameter value, expect ignore nested values', () => {
+    // @ts-ignore
+    expect(urlpath('/path', { a: [1, [2]] })).toBe('/path?a=1')
+  })
 })
+
+test.each(['//relative/url//path/test//', ['', '', 'relative', 'url', '', '', 'path', 'test', '']])(
+  'exessive path separation, expect clean path',
+  test => {
+    const expected = '/relative/url/path/test'
+
+    expect(urlpath(test)).toBe(expected)
+  }
+)
 
 test('primitive types test, expect relative URL', () => {
   expect(urlpath(['root', 'path'], { a: [0, 1, 2], n: 0, s: 'value' })).toBe('/root/path?a=0&a=1&a=2&n=0&s=value')
