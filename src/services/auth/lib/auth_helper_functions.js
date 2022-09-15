@@ -8,7 +8,7 @@ const { capitalize } = require('../../../libs/utils')
 const { responseObjectSet } = require('../../../libs/http_utils')
 
 /**
- * @param {Partial<User>} doc Instance of a database document.
+ * @param {Partial<User>} doc Instance of application user.
  * @returns {Dict<any>} Formatted plain object.
  */
 function formatUserDoc(doc) {

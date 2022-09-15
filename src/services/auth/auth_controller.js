@@ -7,9 +7,9 @@
 
 const authSchema = require('./lib/auth_schema')
 const createAuthError = require('./lib/errors')
+const jwt = require('../../libs/accesstoken')
 const userDataAccessor = require('./lib/user_data_accessor')
 const { formatUserDoc, verifyPassword } = require('./lib/auth_helper_functions')
-const { generateUserJwt } = require('../../libs/access_control_helpers')
 
 /**
  * @param {Request} req HTTP request object.
@@ -48,7 +48,7 @@ async function loginPasswordAuth(req, res) {
   }
 
   // @ts-ignore
-  const accessToken = generateUserJwt(user, req.config('accessToken'))
+  const accessToken = jwt(user, req.config('accessToken'))
 
   res.json({ accessToken })
 }
@@ -83,7 +83,7 @@ async function trustedAuth(req, res) {
     throw createAuthError('pwd', 'password')
   }
 
-  const accessToken = generateUserJwt(user, req.config('accessToken'))
+  const accessToken = jwt(user, req.config('accessToken'))
 
   res.json({ accessToken })
 }
