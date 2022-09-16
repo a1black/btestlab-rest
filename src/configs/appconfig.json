@@ -17,8 +17,8 @@
   },
   "genops": {
     "employeeId": {
-      "length": 5,
-      "prefix": 34000
+      "length": 10,
+      "prefix": 3400
     },
     "lpuId": {
       "length": 6,

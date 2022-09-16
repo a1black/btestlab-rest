@@ -4,7 +4,7 @@
  * @typedef {Object} EmployeeSchemaOptions
  * @property {Object} birthdate Date validation options.
  * @property {string} birthdate.min Minimal allowed value.
- * @property {Object} name Name validation options.
+ * @property {Object} name Employee name validation options.
  * @property {number} name.maxLength Maximum length of input value.
  * @property {RegExp} name.pattern Regular expression to match input value.
  * @property {Object} password Password validation options.
@@ -25,7 +25,7 @@ const {
 
 /**
  * @param {EmployeeSchemaOptions["name"]} options Validation options.
- * @returns {Joi.StringSchema} A schema object to validate human name.
+ * @returns {Joi.StringSchema} Schema to validate employee's name.
  */
 function employeeNameSchema(options) {
   return Joi.string()
@@ -40,7 +40,7 @@ function employeeNameSchema(options) {
 
 /**
  * @param {EmployeeSchemaOptions["password"]} options Validation options.
- * @returns {Joi.StringSchema} A schema object to validate raw password value.
+ * @returns {Joi.StringSchema} Schema to validate raw password value.
  */
 function employeePasswordSchema(options) {
   return Joi.string()
@@ -53,7 +53,7 @@ function employeePasswordSchema(options) {
 
 /**
  * @param {EmployeeSchemaOptions} options Validation options.
- * @returns {Joi.ObjectSchema} A schema object to validate input data for update operation.
+ * @returns {Joi.ObjectSchema} Schema to validate employee document excluding password field.
  */
 function employeeSchema(options) {
   return Joi.object({
@@ -78,17 +78,20 @@ function employeeSchema(options) {
 }
 
 module.exports = {
-  base: employeeSchema,
-  /** @type {(options: EmployeeSchemaOptions) => Joi.ObjectSchema} */
-  full: options =>
+  /** @type {(options: EmployeeSchemaOptions) => Joi.ObjectSchema} Schema to validate input to create new employee document. */
+  employeeDoc: options =>
     employeeSchema(options).append({
       password: employeePasswordSchema(options.password).optional()
     }),
-  /** @type {(options: EmployeeSchemaOptions) => Joi.ObjectSchema} */
-  password: options =>
+  /** @type {() => Joi.NumberSchema} Schema to validate value of primary key. */
+  id: () =>
+    Joi.number().integer().positive().required().prefs({ convert: true }),
+  /** @type {(options: EmployeeSchemaOptions) => Joi.ObjectSchema} Schema to validate password update document. */
+  passwordDoc: options =>
     Joi.object({
       password: employeePasswordSchema(options.password).required()
     })
       .required()
-      .prefs(baseValidationOptions())
+      .prefs(baseValidationOptions()),
+  updateDoc: employeeSchema
 }

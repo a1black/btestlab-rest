@@ -59,7 +59,7 @@ declare global {
     genops: {
       employeeId: {
         length: number;
-        prefix: number;
+        prefix?: number;
       };
       lpuId: {
         length: number;

@@ -1,73 +1,82 @@
 'use strict'
 
 /**
+ * @typedef {{ length: number, prefix?: number }} GeneratorOptions PK generation parameters.
+ *
  * @typedef {import("mongodb").Db} mongodb.Db
  * @typedef {import("mongodb").Collection<Collection.Employee>} EmployeeCollection
- * @typedef {import("mongodb").FindCursor<Collection.Employee>} EmployeeFindCursor
+ * @typedef {import("mongodb").FindCursor<Partial<Collection.Employee>>} EmployeeFindCursor
+ * @typedef {import("mongodb").InferIdType<Collection.Employee>} EmployeeIdType
  */
 
-const { CollectionNameEnum } = require('../../../globals')
-const {
-  generateId,
-  isDuplicateMongoError
-} = require('../../../libs/mongodb_helpers')
+const crypto = require('crypto')
 
-const DEFAULT_INSERT_ATTEMPTS = 3
+const { CollectionNameEnum } = require('../../../globals')
+const { generateIdDecorator } = require('../../../libs/mongodb_helpers')
+
+/**
+ * @param {GeneratorOptions} options Generator options.
+ * @returns {() => EmployeeIdType} Random number generator.
+ */
+function pkGenerator(options) {
+  const { length, prefix = 0 } = options
+  const base10 = Math.pow(10, length - (prefix ? prefix.toString().length : 0))
+  const initValue = prefix * base10
+
+  return () => crypto.randomInt(base10 - 1) + initValue
+}
 
 class EmployeeDataAccessor {
   /**
    * @param {mongodb.Db} db Database instance.
    * @param {string} name Collection name.
+   * @param {() => EmployeeIdType} generator Function for generating primary key.
    */
-  constructor(db, name) {
+  constructor(db, name, generator) {
     /** @type {EmployeeCollection} Collection instance. */
     this.collection = db.collection(name)
+    const createEmployee = this.create.bind(this)
+    this.create = generateIdDecorator(createEmployee, generator)
   }
 
   /**
-   * @param {Collection.OmitBase<Collection.Employee>} doc New document to insert in the database.
-   * @param {{ attempts?: number, length: number, prefix: number }} options Document creation options.
-   * @returns {Promise<Collection.InferIdType<Collection.Employee>>} Document's primary key.
+   * @param {Collection.Employee} doc Insert document.
+   * @returns {Promise<EmployeeIdType>} Primary key.
    */
-  async create(doc, options) {
-    const { attempts = DEFAULT_INSERT_ATTEMPTS, length, prefix } = options
+  create(doc) {
+    const { _id, lastname, firstname, middlename, ...user } = doc
 
-    try {
-      const { insertedId } = await this.collection.insertOne({
-        _id: generateId({ length, prefix }),
-        ctime: new Date(),
-        ...doc
+    return this.collection
+      .insertOne({
+        _id,
+        lastname,
+        firstname,
+        middlename,
+        ...user,
+        ctime: new Date()
       })
-
-      return insertedId
-    } catch (error) {
-      if (isDuplicateMongoError(error, '_id')) {
-        if (attempts > 0) {
-          return this.create(
-            doc,
-            Object.assign({}, options, { attempts: attempts - 1 })
-          )
-        } else {
-          throw new Error(
-            `Exceeded maximum attempts to generate unique document '_id' for '${this.collection.collectionName}' collection`
-          )
-        }
-      } else {
-        throw error
-      }
-    }
+      .then(res => res.insertedId)
   }
 
   /**
    * @returns {EmployeeFindCursor} Cursor over documents in the collection.
    */
   list() {
-    // TODO: add sorting criteria and projection
-    return this.collection.find()
+    return this.collection
+      .find()
+      .project({
+        admin: 1,
+        ctime: 1,
+        firstname: 1,
+        lastname: 1,
+        middlename: 1,
+        birthdate: 1
+      })
+      .sort({ lastname: 1, firstname: 1, middlename: 1, birthdate: 1 })
   }
 
   /**
-   * @param {Collection.InferIdType<Collection.Employee>} id Document's primary key.
+   * @param {EmployeeIdType} id Primary key.
    * @returns {Promise<Collection.Employee?>} Matched document or `null`.
    */
   read(id) {
@@ -75,7 +84,7 @@ class EmployeeDataAccessor {
   }
 
   /**
-   * @param {Collection.InferIdType<Collection.Employee>} id Document's primary key.
+   * @param {EmployeeIdType} id Primary key.
    * @returns {Promise<boolean>} `true` if document was deleted, `false` otherwise.
    */
   remove(id) {
@@ -85,9 +94,9 @@ class EmployeeDataAccessor {
   }
 
   /**
-   * @param {Collection.InferIdType<Collection.Employee>} id Document's primary key.
+   * @param {EmployeeIdType} id Primary key.
    * @param {Collection.OmitBase<Collection.Employee, "password">} doc Replacement document.
-   * @returns {Promise<boolean>} `true` if matching document is found, `false` otherwise.
+   * @returns {Promise<boolean>} `true` if document was modified, `false` otherwise.
    */
   replace(id, doc) {
     return this.collection
@@ -96,32 +105,37 @@ class EmployeeDataAccessor {
           $replaceWith: {
             $mergeObjects: [
               doc,
-              { _id: '$_id', ctime: '$ctime', password: '$password' }
+              { _id: '$_id', password: '$password', ctime: '$ctime' }
             ]
           }
         },
         { $set: { mtime: '$$NOW' } }
       ])
-      .then(res => res.matchedCount === 1)
+      .then(res => res.modifiedCount === 1)
   }
 
   /**
-   * @param {Collection.InferIdType<Collection.Employee>} id Document's primary key.
-   * @param {Collection.Employee["password"]} password New password value.
-   * @returns {Promise<boolean>} `true` if matching document is found, `false` otherwise.
+   * @param {Collection.InferIdType<Collection.Employee>} id Primary key.
+   * @param {Collection.Employee["password"]} password Password hash string.
+   * @returns {Promise<boolean>} `true` if document was modified, `false` otherwise.
    */
   updatePassword(id, password) {
+    /** @type {import("mongodb").UpdateFilter<Collection.Employee>} */
+    const updateDoc = password
+      ? { $set: { password } }
+      : { $unset: { password: 1 } }
+    updateDoc['$currentDate'] = { mtime: true }
+
     return this.collection
-      .updateOne(
-        { _id: id },
-        {
-          ...(password ? { $set: { password } } : { $unset: { password: 1 } }),
-          $currentDate: { mtime: true }
-        }
-      )
-      .then(res => res.matchedCount === 1)
+      .updateOne({ _id: id }, updateDoc)
+      .then(res => res.modifiedCount === 1)
   }
 }
 
-/** @type {(db: mongodb.Db) => EmployeeDataAccessor} */
-module.exports = db => new EmployeeDataAccessor(db, CollectionNameEnum.EMPLOYEE)
+/** @type {(db: mongodb.Db, options: GeneratorOptions) => EmployeeDataAccessor} */
+module.exports = (db, options) =>
+  new EmployeeDataAccessor(
+    db,
+    CollectionNameEnum.EMPLOYEE,
+    pkGenerator(options)
+  )

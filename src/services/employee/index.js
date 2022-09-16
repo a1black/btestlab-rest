@@ -1,54 +1,55 @@
 'use strict'
 
-const Joi = require('joi')
 const createHttpError = require('http-errors')
 const express = require('express')
 
 const employeeController = require('./employee_controller')
-const {
-  fetchUserRequestHandler: fetchUser,
-  isAdminRequestHandler: isAdmin,
-  verifyJwtRequestHandler: verifyJwt
-} = require('../../libs/access_control_helpers')
-const { serviceCodeErrorHandler } = require('../../libs/error_handlers')
-
-/** @type {express.RequestHandler} */
-function isAdminOrOwner(req, res, next) {
-  const admin = req.user?.admin === true
-  // @ts-ignore
-  const owner = req.user?._id && req.user._id === req.params.id
-
-  next(admin || owner ? undefined : createHttpError(403))
-}
+const employeeSchema = require('./lib/employee_schema')
+const verifyJwt = require('../../libs/middleware/verify_jwt')
+const privilegeClaims = require('../../libs/middleware/privilege_claims')
+const { joiErrorHandler } = require('../../libs/error_handlers')
 
 /** @type {(config: ApplicationConfiguration) => express.IRouter} */
-module.exports = config =>
-  express
+module.exports = config => {
+  const claimMiddleware = privilegeClaims([
+    'owner',
+    // @ts-ignore
+    req => req.user._id === req.params.id
+  ])
+
+  return express
     .Router()
     .param('id', (req, res, next, id) => {
-      const { error, value } = Joi.number()
-        .integer()
-        .positive()
-        .required()
-        .validate(id, { convert: true })
+      const { error, value } = employeeSchema.id().validate(id)
+
       req.params.id = value
       next(error ? createHttpError(404) : undefined)
     })
-    .use(verifyJwt(config.accessToken), fetchUser())
-    .delete('/:id', isAdminOrOwner, employeeController.deleteEmployee)
+    .use(verifyJwt(config.accessToken), claimMiddleware.attach())
+    .delete(
+      '/:id',
+      claimMiddleware.verify('admin', 'owner'),
+      employeeController.deleteEmployee
+    )
     .get('/:id', employeeController.readEmployee)
     .get('/', employeeController.listEmployees)
-    .post('/', isAdmin, express.json(), employeeController.createEmployee)
-    .put(
-      '/:id/password',
-      isAdminOrOwner,
+    .patch(
+      '/:id',
+      claimMiddleware.verify('admin', 'owner'),
       express.json(),
       employeeController.updateEmployeePassword
     )
+    .post(
+      '/',
+      claimMiddleware.verify('admin'),
+      express.json(),
+      employeeController.createEmployee
+    )
     .put(
       '/:id',
-      isAdminOrOwner,
+      claimMiddleware.verify('admin', 'owner'),
       express.json(),
       employeeController.updateEmployee
     )
-    .use(serviceCodeErrorHandler('employee'))
+    .use(joiErrorHandler({ prefix: 'employee' }))
+}

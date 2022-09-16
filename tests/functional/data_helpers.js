@@ -70,7 +70,7 @@ async function validContingent(id) {
 /** @type {() => Promise<Collection.OmitBase<Collection.Employee>>} */
 async function validEmployee() {
   const options = (await config()).input.employee
-  const { error, value } = employeeSchema.full(options).validate({
+  const { error, value } = employeeSchema.employeeDoc(options).validate({
     birthdate: new Date(),
     firstname: randomString({ locale: 'ru', size: 16 }),
     lastname: randomString({ locale: 'ru', size: 16 }),

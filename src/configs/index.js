@@ -91,6 +91,8 @@ async function loadApplicationConfig() {
         employeeId: Joi.object({
           length: JoiInteger().min(4).max(10),
           prefix: JoiInteger()
+            .less(Joi.ref('length', { adjust: len => Math.pow(10, len - 2) }))
+            .optional()
         }),
         lpuId: Joi.object({
           length: JoiInteger().min(4).max(10),
