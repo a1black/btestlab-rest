@@ -19,10 +19,6 @@
     "employeeId": {
       "length": 10,
       "prefix": 3400
-    },
-    "lpuId": {
-      "length": 6,
-      "prefix": 3400
     }
   },
   "routes": {

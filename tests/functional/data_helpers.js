@@ -26,7 +26,7 @@ function invalidEmployee() {
 
 /** @type {() => Partial<Record<keyof Collection.Lpu, any>>} */
 function invalidLpu() {
-  return { abbr: '', code: 'not number', name: '', opf: '' }
+  return { abbr: '', opf: '' }
 }
 
 /**
@@ -89,10 +89,8 @@ async function validEmployee() {
 /** @type {() => Promise<Collection.OmitBase<Collection.Lpu>>} */
 async function validLpu() {
   const options = (await config()).input.lpu
-  const { error, value } = lpuSchema.base(options).validate({
+  const { error, value } = lpuSchema.lpuDoc(options).validate({
     abbr: randomString({ locale: 'ru', size: 16 }),
-    code: crypto.randomInt(1000),
-    name: randomString({ locale: 'ru', size: 32 }),
     opf: randomString({ locale: 'ru', size: 8 })
   })
 

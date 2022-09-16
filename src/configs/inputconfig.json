@@ -54,9 +54,6 @@
   },
   "lpu": {
     "abbr": {
-      "maxLength": 128
-    },
-    "name": {
       "maxLength": 256
     },
     "opf": {

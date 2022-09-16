@@ -2,16 +2,51 @@
 
 const { invalidLpu, validLpu } = require('../data_helpers')
 const { clearCollection } = require('../db_helpers')
-const { requestFactory, pathjoin, generateAccessToken } = require('../http_request_helpers')
+const { generateAccessToken, requestFactory, servicePathProvider } = require('../http_request_helpers')
 
 const { CollectionNameEnum } = require('../../../src/globals')
 
-/** @type {typeof pathjoin} */
-const urlpath = (...parts) => pathjoin('/lpu', ...parts)
-/** @type {typeof pathjoin} */
-const fakepath = (...parts) => urlpath(1, ...parts)
+/** @type {() => (...path: any[]) => Promise<string>} */
+const urlpath = () => {
+  const base = servicePathProvider('lpu')
+
+  return (...path) => base().then(basepath => [basepath, ...path].join('/'))
+}
+
+/** @type {(request: any) => Promise<{ lpu: Partial<Collection.Lpu>, url: { create: string, delete: string, read: string, update: string }}>} */
+async function createLpuFixture(request) {
+  const auth = await generateAccessToken()
+  const doc = await validLpu()
+  const url = await urlpath()()
+
+  const response = await request
+    .post(url)
+    .auth(...auth)
+    .send(doc)
+  expect(response.status).toBe(200)
+  expect(response.body.links).toMatchObject({
+    create: expect.any(String),
+    delete: expect.any(String),
+    read: expect.any(String),
+    update: expect.any(String)
+  })
+
+  return { lpu: doc, url: response.body.links }
+}
+
+/** @type {(request: any, url: string) => Promise<void>} */
+async function deleteLpuFixture(request, url) {
+  const auth = await generateAccessToken()
+
+  const response = await request
+    .delete(url)
+    .auth(...auth)
+    .send()
+  expect(response.status).toBe(200)
+}
 
 describe('access control', () => {
+  const lpuPath = urlpath()
   const requestProvider = requestFactory()
 
   beforeAll(async () => {
@@ -24,59 +59,42 @@ describe('access control', () => {
   })
 
   test('unauthenticated create, expect 401', async () => {
+    const doc = await validLpu()
+    const url = await lpuPath()
     const [request] = await requestProvider()
-    const response = await request.post(urlpath()).send({})
 
+    const response = await request.post(url).send(doc)
     expect(response.status).toBe(401)
-    expect(response.body).toMatchObject({ message: expect.any(String) })
   })
 
   test('unauthenticated read, expect 401', async () => {
+    const url = await lpuPath('lpu')
     const [request] = await requestProvider()
-    const response = await request.get(fakepath()).send({})
 
+    const response = await request.get(url).send()
     expect(response.status).toBe(401)
-    expect(response.body).toMatchObject({ message: expect.any(String) })
   })
 
   test('unauthenticated update, expect 401', async () => {
+    const doc = await validLpu()
+    const url = await lpuPath('lpu')
     const [request] = await requestProvider()
-    const response = await request.put(fakepath()).send({})
 
+    const response = await request.put(url).send(doc)
     expect(response.status).toBe(401)
-    expect(response.body).toMatchObject({ message: expect.any(String) })
   })
 
-  test('unauthenticated activate, expect 401', async () => {
+  test('unauthenticated state update, expect 401', async () => {
+    const url = await lpuPath('lpu')
     const [request] = await requestProvider()
-    const response = await request.put(fakepath('activate')).send()
 
+    const response = await request.put(url).send({ state: true })
     expect(response.status).toBe(401)
-    expect(response.body).toMatchObject({ message: expect.any(String) })
-  })
-
-  test('unauthenticated deactivate, expect 401', async () => {
-    const [request] = await requestProvider()
-    const response = await request.put(fakepath('deactivate')).send()
-
-    expect(response.status).toBe(401)
-    expect(response.body).toMatchObject({ message: expect.any(String) })
-  })
-
-  test('unauthorized create, expect 403', async () => {
-    const auth = await generateAccessToken(false)
-    const [request] = await requestProvider()
-    const response = await request
-      .post(urlpath())
-      .auth(...auth)
-      .send({})
-
-    expect(response.status).toBe(403)
-    expect(response.body).toMatchObject({ message: expect.any(String) })
   })
 })
 
 describe('lpu.create', () => {
+  const lpuPath = urlpath()
   const requestProvider = requestFactory()
 
   beforeAll(async () => {
@@ -93,16 +111,17 @@ describe('lpu.create', () => {
   })
 
   test('invalid post data, expect 400', async () => {
-    const auth = await generateAccessToken(true)
+    const auth = await generateAccessToken()
     const doc = invalidLpu()
+    const url = await lpuPath()
     const [request] = await requestProvider()
-    const response = await request
-      .post(urlpath())
+
+    const createResponse = await request
+      .post(url)
       .auth(...auth)
       .send(doc)
-
-    expect(response.status).toBe(400)
-    expect(response.body).toMatchObject({
+    expect(createResponse.status).toBe(400)
+    expect(createResponse.body).toMatchObject({
       errors: expect.objectContaining({
         abbr: expect.any(String),
         opf: expect.any(String)
@@ -111,20 +130,71 @@ describe('lpu.create', () => {
   })
 
   test('valid post data, expect 200', async () => {
-    const auth = await generateAccessToken(true)
+    const auth = await generateAccessToken()
     const doc = await validLpu()
+    const url = await lpuPath()
     const [request] = await requestProvider()
-    const response = await request
-      .post(urlpath())
+
+    const createResponse = await request
+      .post(url)
       .auth(...auth)
       .send(doc)
+    expect(createResponse.status).toBe(200)
+    expect(createResponse.body).toMatchObject({
+      links: expect.objectContaining({ read: expect.any(String) })
+    })
+  })
 
-    expect(response.status).toBe(200)
-    expect(response.body).toMatchObject({ id: expect.any(Number) })
+  test('lpu created deactivated, expect true', async () => {
+    const auth = await generateAccessToken()
+    const [request] = await requestProvider()
+
+    const { url } = await createLpuFixture(request)
+
+    const readResponse = await request
+      .get(url.read)
+      .auth(...auth)
+      .send()
+    expect(readResponse.status).toBe(200)
+    expect(readResponse.body.doc).toMatchObject({
+      disabled: expect.any(Number)
+    })
+  })
+})
+
+describe('lpu.delete', () => {
+  const requestProvider = requestFactory()
+
+  beforeAll(async () => {
+    await requestProvider()
+  })
+
+  afterAll(async () => {
+    const [, teardown] = await requestProvider()
+    await teardown()
+  })
+
+  afterEach(async () => {
+    await clearCollection(CollectionNameEnum.LPU)
+  })
+
+  test('delete non-existing document, expect 404', async () => {
+    const auth = await generateAccessToken()
+    const [request] = await requestProvider()
+
+    const { url } = await createLpuFixture(request)
+    await deleteLpuFixture(request, url.delete)
+
+    const notfoundResponse = await request
+      .delete(url.delete)
+      .auth(...auth)
+      .send()
+    expect(notfoundResponse.status).toBe(404)
   })
 })
 
 describe('lpu.read', () => {
+  const lpuPath = urlpath()
   const requestProvider = requestFactory()
 
   beforeAll(async () => {
@@ -142,37 +212,55 @@ describe('lpu.read', () => {
 
   test('read non-existing document, expect 404', async () => {
     const auth = await generateAccessToken()
+    const url = await lpuPath('lpu')
     const [request] = await requestProvider()
-    const response = await request
-      .get(fakepath())
+
+    const readResponse = await request
+      .get(url)
       .auth(...auth)
       .send()
-
-    expect(response.status).toBe(404)
+    expect(readResponse.status).toBe(404)
   })
 
   test('read existing document, expect 200', async () => {
-    const doc = await validLpu()
+    const auth = await generateAccessToken()
     const [request] = await requestProvider()
 
-    const createRes = await request
-      .post(urlpath())
-      .auth(...(await generateAccessToken(true)))
-      .send(doc)
-    expect(createRes.status).toBe(200)
-    expect(createRes.body).toMatchObject({ id: expect.anything() })
+    const { url } = await createLpuFixture(request)
 
-    const response = await request
-      .get(urlpath(createRes.body.id))
-      .auth(...(await generateAccessToken()))
+    const readResponse = await request
+      .get(url.read)
+      .auth(...auth)
       .send()
+    expect(readResponse.status).toBe(200)
+    expect(readResponse.body).toMatchObject({
+      doc: expect.anything(),
+      links: expect.objectContaining({
+        create: expect.any(String),
+        delete: expect.any(String),
+        read: expect.any(String),
+        update: expect.any(String)
+      })
+    })
+  })
 
-    expect(response.status).toBe(200)
-    expect(response.body).toMatchObject({
-      doc: expect.objectContaining({
-        id: createRes.body.id,
-        abbr: doc.abbr,
-        opf: doc.opf
+  test('read deleted document, expect 200', async () => {
+    const auth = await generateAccessToken()
+    const [request] = await requestProvider()
+
+    const { url } = await createLpuFixture(request)
+    await deleteLpuFixture(request, url.delete)
+
+    const readResponse = await request
+      .get(url.read)
+      .auth(...auth)
+      .send()
+    expect(readResponse.status).toBe(200)
+    expect(readResponse.body).toMatchObject({
+      doc: expect.anything(),
+      links: expect.not.objectContaining({
+        delete: expect.any(String),
+        update: expect.any(String)
       })
     })
   })
@@ -194,50 +282,39 @@ describe('lpu.update', () => {
     await clearCollection(CollectionNameEnum.LPU)
   })
 
-  test('update non-existing document, expect 404', async () => {
+  test('update deleted document, expect 404', async () => {
     const auth = await generateAccessToken()
+    const doc = await validLpu()
     const [request] = await requestProvider()
-    const response = await request
-      .get(fakepath())
-      .auth(...auth)
-      .send()
 
-    expect(response.status).toBe(404)
+    const { url } = await createLpuFixture(request)
+    await deleteLpuFixture(request, url.delete)
+
+    const updateResponse = await request
+      .put(url.update)
+      .auth(...auth)
+      .send(doc)
+    expect(updateResponse.status).toBe(404)
   })
 
   test('update existing document, expect 200', async () => {
     const auth = await generateAccessToken()
     const doc = await validLpu()
-    const upd = await validLpu()
     const [request] = await requestProvider()
 
-    const createRes = await request
-      .post(urlpath())
-      .auth(...(await generateAccessToken(true)))
+    const { url } = await createLpuFixture(request)
+
+    const updateResponse = await request
+      .put(url.update)
+      .auth(...auth)
       .send(doc)
-    expect(createRes.status).toBe(200)
-    expect(createRes.body).toMatchObject({ id: expect.anything() })
-
-    const updateRes = await request
-      .put(urlpath(createRes.body.id))
-      .auth(...auth)
-      .send(upd)
-    expect(updateRes.status).toBe(200)
-
-    const readRes = await request
-      .get(urlpath(createRes.body.id))
-      .auth(...auth)
-      .send()
-    expect(readRes.status).toBe(200)
-    expect(readRes.body).toMatchObject({
-      doc: expect.objectContaining({
-        modified: expect.anything()
-      })
-    })
+    expect(updateResponse.status).toBe(200)
+    expect(updateResponse.body.links).toMatchObject({ read: expect.any(String) })
+    expect(url.read).not.toEqual(updateResponse.body.links.read)
   })
 })
 
-describe('lpu.activate/deactivate', () => {
+describe('lpu.state', () => {
   const requestProvider = requestFactory()
 
   beforeAll(async () => {
@@ -253,98 +330,36 @@ describe('lpu.activate/deactivate', () => {
     await clearCollection(CollectionNameEnum.LPU)
   })
 
-  test('activate non-existing document, expect 404', async () => {
+  test('update state of deleted document, expect 404', async () => {
     const auth = await generateAccessToken()
     const [request] = await requestProvider()
-    const response = await request
-      .put(fakepath('activate'))
-      .auth(...auth)
-      .send()
 
-    expect(response.status).toBe(404)
+    const { url } = await createLpuFixture(request)
+    await deleteLpuFixture(request, url.delete)
+
+    const notfoundResponse = await request
+      .put(url.update)
+      .auth(...auth)
+      .send({ state: false })
+    expect(notfoundResponse.status).toBe(404)
   })
 
-  test('deactivate non-existing document, expect 404', async () => {
+  test('repeated state update, expect 200', async () => {
     const auth = await generateAccessToken()
     const [request] = await requestProvider()
-    const response = await request
-      .put(fakepath('deactivate'))
+
+    const { url } = await createLpuFixture(request)
+
+    const updateResponse = await request
+      .put(url.update)
       .auth(...auth)
-      .send()
-
-    expect(response.status).toBe(404)
-  })
-
-  test('repeated activate request, expect 200', async () => {
-    const auth = await generateAccessToken()
-    const doc = await validLpu()
-    const [request] = await requestProvider()
-
-    const createRes = await request
-      .post(urlpath())
-      .auth(...(await generateAccessToken(true)))
-      .send(doc)
-    expect(createRes.status).toBe(200)
-    expect(createRes.body).toMatchObject({ id: expect.anything() })
-
-    const activateRes = await request
-      .put(urlpath(createRes.body.id, 'activate'))
-      .auth(...auth)
-      .send()
-    expect(activateRes.status).toBe(200)
-
-    const reactivateRes = await request
-      .put(urlpath(createRes.body.id, 'activate'))
-      .auth(...auth)
-      .send()
-    expect(reactivateRes.status).toBe(200)
-
-    const readRes = await request
-      .get(urlpath(createRes.body.id))
-      .auth(...auth)
-      .send()
-
-    expect(readRes.status).toBe(200)
-    expect(readRes.body).toMatchObject({
-      doc: expect.not.objectContaining({
-        disabled: expect.anything()
-      })
-    })
-  })
-
-  test('repeated deactivate request, expect 200', async () => {
-    const auth = await generateAccessToken()
-    const doc = await validLpu()
-    const [request] = await requestProvider()
-
-    const createRes = await request
-      .post(urlpath())
-      .auth(...(await generateAccessToken(true)))
-      .send(doc)
-    expect(createRes.status).toBe(200)
-    expect(createRes.body).toMatchObject({ id: expect.anything() })
-
-    const deactivateRes = await request
-      .put(urlpath(createRes.body.id, 'deactivate'))
-      .auth(...auth)
-      .send()
-    expect(deactivateRes.status).toBe(200)
-
-    const readRes = await request
-      .get(urlpath(createRes.body.id))
-      .auth(...auth)
-      .send()
-
-    expect(readRes.status).toBe(200)
-    expect(readRes.body).toMatchObject({
-      doc: expect.objectContaining({
-        disabled: expect.anything()
-      })
-    })
+      .send({ state: false })
+    expect(updateResponse.status).toBe(200)
   })
 })
 
-describe('duplicate lpu abbr', () => {
+describe('duplicate lpu', () => {
+  const lpuPath = urlpath()
   const requestProvider = requestFactory()
 
   beforeAll(async () => {
@@ -361,109 +376,36 @@ describe('duplicate lpu abbr', () => {
   })
 
   test('duplicate on create, expect 409', async () => {
-    const auth = await generateAccessToken(true)
-    const doc = await validLpu()
+    const auth = await generateAccessToken()
+    const url = await lpuPath()
     const [request] = await requestProvider()
 
-    const createRes = await request
-      .post(urlpath())
-      .auth(...auth)
-      .send(doc)
-    expect(createRes.status).toBe(200)
-    expect(createRes.body).toMatchObject({ id: expect.anything() })
+    const { lpu } = await createLpuFixture(request)
 
-    const response = await request
-      .post(urlpath())
+    const duplicateResponse = await request
+      .post(url)
       .auth(...auth)
-      .send(doc)
-
-    expect(response.status).toBe(409)
-    expect(response.body).toMatchObject({
-      id: createRes.body.id,
-      doc: expect.objectContaining({
-        abbr: doc.abbr
-      }),
-      errors: {
-        abbr: expect.anything()
-      }
+      .send(lpu)
+    expect(duplicateResponse.status).toBe(409)
+    expect(duplicateResponse.body).toMatchObject({
+      errors: { abbr: expect.any(String) }
     })
   })
 
   test('duplicate on update, expect 409', async () => {
-    const auth = await generateAccessToken(true)
-    const firstDoc = await validLpu()
-    const secondDoc = await validLpu()
+    const auth = await generateAccessToken()
     const [request] = await requestProvider()
 
-    const firstCreateRes = await request
-      .post(urlpath())
+    const { lpu } = await createLpuFixture(request)
+    const { url } = await createLpuFixture(request)
+
+    const duplicateResponse = await request
+      .put(url.update)
       .auth(...auth)
-      .send(firstDoc)
-    expect(firstCreateRes.status).toBe(200)
-    expect(firstCreateRes.body).toMatchObject({ id: expect.anything() })
-
-    const secondCreateRes = await request
-      .post(urlpath())
-      .auth(...auth)
-      .send(secondDoc)
-    expect(firstCreateRes.status).toBe(200)
-    expect(firstCreateRes.body).toMatchObject({ id: expect.anything() })
-
-    const response = await request
-      .put(urlpath(secondCreateRes.body.id))
-      .auth(...auth)
-      .send(firstDoc)
-
-    expect(response.status).toBe(409)
-    expect(response.body).toMatchObject({
-      id: firstCreateRes.body.id,
-      doc: expect.objectContaining({
-        abbr: firstDoc.abbr
-      }),
-      errors: {
-        abbr: expect.anything()
-      }
-    })
-  })
-})
-
-describe('other', () => {
-  const requestProvider = requestFactory()
-
-  beforeAll(async () => {
-    await requestProvider()
-  })
-
-  afterAll(async () => {
-    const [, teardown] = await requestProvider()
-    await teardown()
-  })
-
-  afterEach(async () => {
-    await clearCollection(CollectionNameEnum.LPU)
-  })
-
-  test('new lpu always deactivated, expect true', async () => {
-    const doc = await validLpu()
-    const [request] = await requestProvider()
-
-    const createRes = await request
-      .post(urlpath())
-      .auth(...(await generateAccessToken(true)))
-      .send(doc)
-    expect(createRes.status).toBe(200)
-    expect(createRes.body).toMatchObject({ id: expect.anything() })
-
-    const response = await request
-      .get(urlpath(createRes.body.id))
-      .auth(...(await generateAccessToken()))
-      .send()
-
-    expect(response.status).toBe(200)
-    expect(response.body).toMatchObject({
-      doc: expect.objectContaining({
-        disabled: expect.anything()
-      })
+      .send(lpu)
+    expect(duplicateResponse.status).toBe(409)
+    expect(duplicateResponse.body).toMatchObject({
+      errors: { abbr: expect.any(String) }
     })
   })
 })

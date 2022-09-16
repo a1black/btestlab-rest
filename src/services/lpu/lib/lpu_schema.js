@@ -4,8 +4,6 @@
  * @typedef {Object} LpuSchemaOptions
  * @property {Object} abbr Abbreviation validation options.
  * @property {number} abbr.maxLength Maximum length of input value.
- * @property {Object} name Fullname validation options.
- * @property {number} name.maxLength Maximum length of input value.
  * @property {Object} opf Legal entity name validation options.
  * @property {number} opf.maxLength Maximum length of input value.
  * @property {RegExp} opf.pattern Regular expression to match input value.
@@ -21,7 +19,7 @@ const {
 
 /**
  * @param {{ maxLength: number }} options Validation options.
- * @returns {Joi.StringSchema} A schema object to validate short and full organization name.
+ * @returns {Joi.StringSchema} Schema to validate lpu name components.
  */
 function lpuNameSchema(options) {
   return Joi.string()
@@ -33,17 +31,11 @@ function lpuNameSchema(options) {
 
 /**
  * @param {LpuSchemaOptions} options Validation options.
- * @returns {Joi.ObjectSchema} A schema object to validate input data for insert and update operations.
+ * @returns {Joi.ObjectSchema} Schema to validate input document.
  */
 function lpuSchema(options) {
   return Joi.object({
-    code: Joi.number()
-      .integer()
-      .positive()
-      .max(Number.MAX_SAFE_INTEGER)
-      .optional(),
     abbr: lpuNameSchema(options.abbr).required(),
-    name: lpuNameSchema(options.name).optional(),
     opf: lpuNameSchema(options.opf)
       .uppercase()
       .pattern(options.opf.pattern)
@@ -54,5 +46,12 @@ function lpuSchema(options) {
 }
 
 module.exports = {
-  base: lpuSchema
+  lpuDoc: lpuSchema,
+  /** @type {() => Joi.ObjectSchema} Schema to validate state input document. */
+  stateDoc: () =>
+    Joi.object({ state: Joi.boolean().falsy(0).truthy(1).required() })
+      .required()
+      .prefs(baseValidationOptions()),
+  /** @type {() => Joi.StringSchema} Schema to validate lpu's unique identifier. */
+  uid: () => Joi.string().lowercase().required().prefs({ convert: true })
 }

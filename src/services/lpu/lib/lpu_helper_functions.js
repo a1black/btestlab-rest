@@ -1,45 +1,61 @@
 'use strict'
 
-const crypto = require('crypto')
+/**
+ * @typedef {import('express').Request} Request
+ */
 
-const {
-  propertySetterOfResponseData
-} = require('../../../libs/http_service_helpers')
+const translit = require('../../../libs/transliteration')
+const urlpath = require('../../../libs/urlpath')
+const { responseObjectSet } = require('../../../libs/http_utils')
 
 /**
- * Prepares document to be served by HTTP service.
- *
- * @param {Partial<Collection.Lpu>} doc Instance of a database document.
- * @returns {any} Formatted plain object.
+ * @param {Partial<Collection.Lpu>} doc Internal representation of lpu document.
+ * @returns {Dict<number | string>} Formatted plain object.
  */
 function formatLpuDoc(doc) {
-  return propertySetterOfResponseData({}, [
+  return responseObjectSet({}, [
     ['id', doc._id],
-    ['code', doc.code],
+    ['uid', doc.uid],
     ['abbr', doc.abbr],
-    ['name', doc.name],
     ['opf', doc.opf],
-    ['created', doc.ctime?.getTime()],
     ['disabled', doc.xtime?.getTime()],
-    ['modified', doc.mtime?.getTime()]
+    ['created', doc.ctime?.getTime()],
+    ['modified', doc.mtime?.getTime()],
+    ['deleted', doc.dtime?.getTime()]
   ])
 }
 
-/** @type {(name: string) => string} */
-function hashLpuName(name) {
-  return crypto
-    .createHash('sha1')
-    .update(
-      name
-        .normalize('NFC')
-        .toLowerCase()
-        .replaceAll(/[^\p{L}\d]+/gu, '')
-    )
-    .digest()
-    .toString('hex')
+/**
+ * @param {string} source Value used to generate unique identifier.
+ * @returns {string} Unique identifier.
+ */
+function generateUid(source) {
+  return translit(source.trim().toLowerCase())
+    .replaceAll(/[-.,:;\s]/g, '_')
+    .replaceAll(/[^a-z0-9_]/g, '')
+    .replaceAll(/_{2,}/g, '_')
+}
+
+/**
+ * @param {Request} req Client HTTP request.
+ * @param {Partial<Collection.Lpu>} [doc] Lpu document.
+ * @returns {Dict<string>} CRUD links to lpu service.
+ */
+function linkLpuDoc(req, doc) {
+  const basepath = req.config('routes.lpu')
+  const path = urlpath([basepath, doc?.uid ?? ':uid'])
+  const deleted = doc?.dtime instanceof Date || typeof doc?.dtime === 'number'
+
+  return responseObjectSet({}, [
+    ['create', basepath],
+    ['read', path],
+    ['update', deleted ? undefined : path],
+    ['delete', deleted ? undefined : path]
+  ])
 }
 
 module.exports = {
   formatLpuDoc,
-  hashLpuName
+  generateUid,
+  linkLpuDoc
 }

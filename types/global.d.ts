@@ -61,10 +61,6 @@ declare global {
         length: number;
         prefix?: number;
       };
-      lpuId: {
-        length: number;
-        prefix: number;
-      };
     };
     input: {
       auth: any;
@@ -206,12 +202,14 @@ declare global {
     }
 
     interface Lpu extends BaseDocument {
-      _id: number;
-      _hash: string;
+      _id: string;
+      /** Short form of organization name. */
       abbr: string;
-      code?: number;
-      name?: string;
+      /** Short form of legal entity name. */
       opf: string;
+      /** Unique identifier genereted using `abbr` field. */
+      uid: string;
+      /** Document deactivation date. */
       xtime?: Date;
     }
   }
