@@ -2,16 +2,51 @@
 
 const { invalidContingent, validContingent } = require('../data_helpers')
 const { clearCollection } = require('../db_helpers')
-const { requestFactory, pathjoin, generateAccessToken } = require('../http_request_helpers')
+const { generateAccessToken, requestFactory, servicePathProvider } = require('../http_request_helpers')
 
 const { CollectionNameEnum } = require('../../../src/globals')
 
-/** @type {typeof pathjoin} */
-const urlpath = (...parts) => pathjoin('/contingent', ...parts)
-/** @type {typeof pathjoin} */
-const fakepath = (...parts) => urlpath(1, ...parts)
+/** @type {() => (...path: any[]) => Promise<string>} */
+const urlpath = () => {
+  const base = servicePathProvider('contingent')
+
+  return (...path) => base().then(basepath => [basepath, ...path].join('/'))
+}
+
+/** @type {(request: any) => Promise<{ contingent: any, url: { create: string, delete: string, read: string, update: string }}>} */
+async function createContingentFixture(request) {
+  const auth = await generateAccessToken()
+  const doc = await validContingent()
+  const url = await urlpath()()
+
+  const response = await request
+    .post(url)
+    .auth(...auth)
+    .send(doc)
+  expect(response.status).toBe(200)
+  expect(response.body.links).toMatchObject({
+    create: expect.any(String),
+    delete: expect.any(String),
+    read: expect.any(String),
+    update: expect.any(String)
+  })
+
+  return { contingent: doc, url: response.body.links }
+}
+
+/** @type {(request: any, url: string) => Promise<void>} */
+async function deleteContingentFixture(request, url) {
+  const auth = await generateAccessToken()
+
+  const response = await request
+    .delete(url)
+    .auth(...auth)
+    .send()
+  expect(response.status).toBe(200)
+}
 
 describe('unauthenticated request', () => {
+  const contingentPath = urlpath()
   const requestProvider = requestFactory()
 
   beforeAll(async () => {
@@ -24,39 +59,40 @@ describe('unauthenticated request', () => {
   })
 
   test('create, expect 401', async () => {
+    const url = await contingentPath()
     const [request] = await requestProvider()
-    const response = await request.post(urlpath()).send({})
 
+    const response = await request.post(url).send({})
     expect(response.status).toBe(401)
-    expect(response.body).toMatchObject({ message: expect.any(String) })
   })
 
   test('delete, expect 401', async () => {
+    const url = await contingentPath(100)
     const [request] = await requestProvider()
-    const response = await request.delete(fakepath()).send()
 
+    const response = await request.delete(url).send()
     expect(response.status).toBe(401)
-    expect(response.body).toMatchObject({ message: expect.any(String) })
   })
 
   test('read, expect 401', async () => {
+    const url = await contingentPath(100)
     const [request] = await requestProvider()
-    const response = await request.get(fakepath()).send({})
 
+    const response = await request.get(url).send({})
     expect(response.status).toBe(401)
-    expect(response.body).toMatchObject({ message: expect.any(String) })
   })
 
   test('update, expect 401', async () => {
+    const url = await contingentPath(100)
     const [request] = await requestProvider()
-    const response = await request.put(fakepath()).send({})
 
+    const response = await request.put(url).send({})
     expect(response.status).toBe(401)
-    expect(response.body).toMatchObject({ message: expect.any(String) })
   })
 })
 
 describe('contingent.create', () => {
+  const contingentPath = urlpath()
   const requestProvider = requestFactory()
 
   beforeAll(async () => {
@@ -75,14 +111,15 @@ describe('contingent.create', () => {
   test('invalid post data, expect 400', async () => {
     const auth = await generateAccessToken()
     const doc = invalidContingent()
+    const url = await contingentPath()
     const [request] = await requestProvider()
-    const response = await request
-      .post(urlpath())
+
+    const createResponse = await request
+      .post(url)
       .auth(...auth)
       .send(doc)
-
-    expect(response.status).toBe(400)
-    expect(response.body).toMatchObject({
+    expect(createResponse.status).toBe(400)
+    expect(createResponse.body).toMatchObject({
       errors: expect.objectContaining({
         code: expect.any(String),
         desc: expect.any(String)
@@ -93,14 +130,17 @@ describe('contingent.create', () => {
   test('valid post data, expect 200', async () => {
     const auth = await generateAccessToken()
     const doc = await validContingent()
+    const url = await contingentPath()
     const [request] = await requestProvider()
-    const response = await request
-      .post(urlpath())
+
+    const createResponse = await request
+      .post(url)
       .auth(...auth)
       .send(doc)
-
-    expect(response.status).toBe(200)
-    expect(response.body).toMatchObject({ id: expect.any(String) })
+    expect(createResponse.status).toBe(200)
+    expect(createResponse.body).toMatchObject({
+      links: expect.objectContaining({ read: expect.any(String) })
+    })
   })
 })
 
@@ -123,65 +163,34 @@ describe('contingent.delete', () => {
   test('delete non-existing document, expect 404', async () => {
     const auth = await generateAccessToken()
     const [request] = await requestProvider()
-    const response = await request
-      .delete(fakepath())
+
+    const { url } = await createContingentFixture(request)
+    await deleteContingentFixture(request, url.delete)
+
+    const deleteResponse = await request
+      .delete(url.delete)
       .auth(...auth)
       .send()
-
-    expect(response.status).toBe(404)
+    expect(deleteResponse.status).toBe(404)
   })
 
   test('delete existing document, expect 200', async () => {
     const auth = await generateAccessToken()
-    const doc = await validContingent()
     const [request] = await requestProvider()
 
-    const createRes = await request
-      .post(urlpath())
-      .auth(...auth)
-      .send(doc)
-    expect(createRes.status).toBe(200)
-    expect(createRes.body).toMatchObject({ id: expect.anything() })
+    const { url } = await createContingentFixture(request)
 
-    const deleteRes = await request
-      .delete(urlpath(createRes.body.id))
+    const deleteResponse = await request
+      .delete(url.delete)
       .auth(...auth)
       .send()
-    expect(deleteRes.status).toBe(200)
+    expect(deleteResponse.status).toBe(200)
 
-    const readRes = await request
-      .get(urlpath(createRes.body.id))
+    const readResponse = await request
+      .get(url.read)
       .auth(...auth)
       .send()
-
-    expect(readRes.status).toBe(404)
-  })
-
-  test('delete document marked as deleted, expect 404', async () => {
-    const auth = await generateAccessToken()
-    const doc = await validContingent()
-    const [request] = await requestProvider()
-
-    const createRes = await request
-      .post(urlpath())
-      .auth(...auth)
-      .send(doc)
-    expect(createRes.status).toBe(200)
-    expect(createRes.body).toMatchObject({ id: expect.anything() })
-
-    const firstDeleteRes = await request
-      .delete(urlpath(createRes.body.id))
-      .auth(...auth)
-      .send()
-    expect(firstDeleteRes.status).toBe(200)
-
-    const secondDeleteRes = await request
-      .delete(urlpath(createRes.body.id))
-      .auth(...auth)
-      .send()
-
-    expect(secondDeleteRes.status).toBe(404)
-    expect(secondDeleteRes.body).toMatchObject({ message: expect.any(String) })
+    expect(readResponse.status).toBe(404)
   })
 })
 
@@ -204,64 +213,35 @@ describe('contingent.read', () => {
   test('read non-existing document, expect 404', async () => {
     const auth = await generateAccessToken()
     const [request] = await requestProvider()
-    const response = await await request
-      .get(fakepath())
+
+    const { url } = await createContingentFixture(request)
+    await deleteContingentFixture(request, url.delete)
+
+    const readResponse = await await request
+      .get(url.read)
       .auth(...auth)
       .send()
-
-    expect(response.status).toBe(404)
-    expect(response.body).toMatchObject({ message: expect.any(String) })
-  })
-
-  test('read deleted document, expect 404', async () => {
-    const auth = await generateAccessToken()
-    const doc = await validContingent()
-    const [request] = await requestProvider()
-
-    const createRes = await request
-      .post(urlpath())
-      .auth(...auth)
-      .send(doc)
-    expect(createRes.status).toBe(200)
-    expect(createRes.body).toMatchObject({ id: expect.anything() })
-
-    const deleteRes = await request
-      .delete(urlpath(doc.code))
-      .auth(...auth)
-      .send()
-    expect(deleteRes.status).toBe(200)
-
-    const readRes = await request
-      .get(urlpath(createRes.body.id))
-      .auth(...auth)
-      .send()
-
-    expect(readRes.status).toBe(404)
-    expect(readRes.body).toMatchObject({ message: expect.any(String) })
+    expect(readResponse.status).toBe(404)
   })
 
   test('read existing document, expect 200', async () => {
     const auth = await generateAccessToken()
-    const doc = await validContingent()
     const [request] = await requestProvider()
 
-    const createRes = await request
-      .post(urlpath())
-      .auth(...auth)
-      .send(doc)
-    expect(createRes.status).toBe(200)
-    expect(createRes.body).toMatchObject({ id: expect.anything() })
+    const { url } = await createContingentFixture(request)
 
-    const readRes = await request
-      .get(urlpath(createRes.body.id))
+    const readResponse = await request
+      .get(url.read)
       .auth(...auth)
       .send()
-
-    expect(readRes.status).toBe(200)
-    expect(readRes.body).toMatchObject({
-      doc: expect.objectContaining({
-        id: createRes.body.id,
-        desc: expect.any(String)
+    expect(readResponse.status).toBe(200)
+    expect(readResponse.body).toMatchObject({
+      doc: expect.anything(),
+      links: expect.objectContaining({
+        create: expect.any(String),
+        delete: expect.any(String),
+        read: expect.any(String),
+        update: expect.any(String)
       })
     })
   })
@@ -287,76 +267,62 @@ describe('contingent.update', () => {
     const auth = await generateAccessToken()
     const doc = await validContingent()
     const [request] = await requestProvider()
-    const response = await await request
-      .put(fakepath())
+
+    const { url } = await createContingentFixture(request)
+    await deleteContingentFixture(request, url.delete)
+
+    const updateResponse = await await request
+      .put(url.update)
       .auth(...auth)
       .send(doc)
-
-    expect(response.status).toBe(404)
-    expect(response.body).toMatchObject({ message: expect.any(String) })
+    expect(updateResponse.status).toBe(404)
   })
 
-  test('update deleted document, expect 404', async () => {
+  test('invalid update document, expect 400', async () => {
     const auth = await generateAccessToken()
-    const doc = await validContingent()
-    const upd = await validContingent()
+    const doc = invalidContingent()
     const [request] = await requestProvider()
 
-    const createRes = await request
-      .post(urlpath())
+    const { url } = await createContingentFixture(request)
+
+    const updateResponse = await request
+      .put(url.update)
       .auth(...auth)
       .send(doc)
-    expect(createRes.status).toBe(200)
-    expect(createRes.body).toMatchObject({ id: expect.anything() })
-
-    const deleteRes = await request
-      .delete(urlpath(createRes.body.id))
-      .auth(...auth)
-      .send()
-    expect(deleteRes.status).toBe(200)
-
-    const updateRes = await request
-      .put(urlpath(createRes.body.id))
-      .auth(...auth)
-      .send(upd)
-
-    expect(updateRes.status).toBe(404)
-    expect(updateRes.body).toMatchObject({ message: expect.any(String) })
+    expect(updateResponse.status).toBe(400)
+    expect(updateResponse.body).toMatchObject({
+      errors: { desc: expect.any(String) }
+    })
   })
 
   test('update existing document, expect 200', async () => {
     const auth = await generateAccessToken()
     const doc = await validContingent()
-    const upd = await validContingent()
     const [request] = await requestProvider()
 
-    const createRes = await request
-      .post(urlpath())
+    const { url } = await createContingentFixture(request)
+
+    const updateResponse = await request
+      .put(url.update)
       .auth(...auth)
       .send(doc)
-    expect(createRes.status).toBe(200)
-    expect(createRes.body).toMatchObject({ id: expect.anything() })
+    expect(updateResponse.status).toBe(200)
 
-    const updateRes = await request
-      .put(urlpath(createRes.body.id))
-      .auth(...auth)
-      .send(upd)
-    expect(updateRes.status).toBe(200)
-
-    const readRes = await request
-      .get(urlpath(createRes.body.id))
+    const readResponse = await request
+      .get(url.read)
       .auth(...auth)
       .send()
-    expect(readRes.status).toBe(200)
-    expect(readRes.body).toMatchObject({
-      doc: expect.objectContaining({
-        desc: upd.desc
-      })
+    expect(readResponse.status).toBe(200)
+    expect(readResponse.body.doc).toMatchObject({
+      created: expect.any(Number),
+      modified: expect.any(Number)
     })
+    expect(readResponse.body.doc.created).toBeLessThan(readResponse.body.doc.modified)
   })
 })
 
 describe('duplicate code', () => {
+  const contingentPath = urlpath()
   const requestProvider = requestFactory()
 
   beforeAll(async () => {
@@ -374,57 +340,19 @@ describe('duplicate code', () => {
 
   test('duplicate on create, expect 409', async () => {
     const auth = await generateAccessToken()
-    const doc = await validContingent()
+    const url = await contingentPath()
     const [request] = await requestProvider()
 
-    const createRes = await request
-      .post(urlpath())
-      .auth(...auth)
-      .send(doc)
-    expect(createRes.status).toBe(200)
+    const { contingent } = await createContingentFixture(request)
 
-    const response = await request
-      .post(urlpath())
+    const createResponse = await request
+      .post(url)
       .auth(...auth)
-      .send(doc)
-
-    expect(response.status).toBe(409)
-    expect(response.body).toMatchObject({
-      id: doc.code,
-      errors: { code: expect.anything() }
+      .send(contingent)
+    expect(createResponse.status).toBe(409)
+    expect(createResponse.body).toMatchObject({
+      errors: { code: expect.anything() },
+      links: expect.objectContaining({ read: expect.any(String) })
     })
-  })
-
-  test('duplicate on delete, expect 200', async () => {
-    const auth = await generateAccessToken()
-    const doc = await validContingent()
-    const [request] = await requestProvider()
-
-    const firstCreateRes = await request
-      .post(urlpath())
-      .auth(...auth)
-      .send(doc)
-    expect(firstCreateRes.status).toBe(200)
-    expect(firstCreateRes.body).toMatchObject({ id: expect.anything() })
-
-    const firstDeleteRes = await request
-      .delete(urlpath(firstCreateRes.body.id))
-      .auth(...auth)
-      .send()
-    expect(firstDeleteRes.status).toBe(200)
-
-    const secondCreateRes = await request
-      .post(urlpath())
-      .auth(...auth)
-      .send(doc)
-    expect(secondCreateRes.status).toBe(200)
-    expect(secondCreateRes.body).toMatchObject({ id: expect.anything() })
-
-    const secondDeleteRes = await request
-      .delete(urlpath(secondCreateRes.body.id))
-      .auth(...auth)
-      .send()
-
-    expect(secondDeleteRes.status).toBe(200)
   })
 })

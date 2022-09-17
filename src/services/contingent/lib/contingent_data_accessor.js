@@ -3,16 +3,13 @@
 /**
  * @typedef {import("mongodb").Db} mongodb.Db
  * @typedef {import("mongodb").Collection<Collection.Contingent>} ContingentCollection
+ * @typedef {import("mongodb").Filter<Collection.Contingent>} ContingentFilter
  * @typedef {import("mongodb").FindCursor<Partial<Collection.Contingent>>} ContingentFindCursor
+ * @typedef {import("mongodb").InferIdType<Collection.Contingent>} ContingentIdType
  */
 
 const { CollectionNameEnum } = require('../../../globals')
-const {
-  dateWithoutTime,
-  isDuplicateMongoError,
-  queryExisted,
-  queryDeleted
-} = require('../../../libs/mongodb_helpers')
+const { isDuplicateMongoError } = require('../../../libs/mongodb_helpers')
 
 class ContingentDataAccessor {
   /**
@@ -25,78 +22,58 @@ class ContingentDataAccessor {
   }
 
   /**
-   * @param {Collection.OmitBase<Collection.Contingent>} doc New document to insert in the database.
-   * @returns {Promise<Collection.Contingent["code"]>} `code` property of inserted document.
+   * @param {Collection.OmitBase<Collection.Contingent> & { code: ContingentIdType }} doc New document to insert in the database.
+   * @returns {Promise<ContingentIdType>} Primary key.
    */
   create(doc) {
+    const { code, ...insertDoc } = doc
+
     return this.collection
-      .insertOne({ ...doc, ctime: dateWithoutTime() })
-      .then(() => doc.code)
+      .insertOne({ _id: code, ...insertDoc, ctime: new Date() })
+      .then(res => res.insertedId)
   }
 
   /**
-   * @param {Collection.Contingent["code"]} code Document's unique key value.
-   * @returns {ContingentFindCursor} Cursor over deleted documents with specified `code` value.
-   */
-  history(code) {
-    return this.collection
-      .find(queryDeleted({ code }))
-      .sort('dtime', 1)
-      .project({ _id: 0, desc: 1, ctime: 1, dtime: 1 })
-  }
-
-  /**
-   * @returns {ContingentFindCursor} Cursor over existing (non-deleted) documents in the collection.
+   * @returns {ContingentFindCursor} Cursor over documents in the collection.
    */
   list() {
+    return this.collection.find({}).project({ desc: 1 })
+  }
+
+  /**
+   * @param {ContingentIdType} id Contingent code.
+   * @returns {Promise<Collection.Contingent?>} Matched contingent document or `null`.
+   */
+  read(id) {
+    return this.collection.findOne({ _id: id })
+  }
+
+  /**
+   * @param {ContingentIdType} id Contingent code.
+   * @returns {Promise<boolean>} `true` if matching document was deleted, `false` otherwise.
+   */
+  remove(id) {
     return this.collection
-      .find(queryExisted({}))
-      .sort({ dtime: 1, code: 1 })
-      .project({ _id: 0, code: 1, desc: 1 })
+      .deleteOne({ _id: id })
+      .then(res => res.deletedCount === 1)
   }
 
   /**
-   * @param {Collection.Contingent["code"]} code Document's unique key value.
-   * @returns {Promise<Collection.Contingent?>} Matched document or `null`.
+   * @param {Omit<Collection.Contingent, "ctime">} doc Modified version of contingent document.
+   * @returns {Promise<boolean>} `true` if matching document was modified, `false` otherwise.
    */
-  read(code) {
-    return this.collection.findOne(queryExisted({ code }))
-  }
+  update(doc) {
+    const { _id, desc } = doc
 
-  /**
-   * @param {Collection.Contingent["code"]} code Document's unique key value.
-   * @returns {Promise<boolean>} `true` if matching document is found, `false` otherwise.
-   */
-  remove(code) {
-    return (
-      this.collection
-        .updateOne(queryExisted({ code }), {
-          $set: { dtime: dateWithoutTime() }
-        })
-        .catch(error => {
-          if (isDuplicateMongoError(error)) {
-            return this.collection.deleteOne(queryExisted({ code }))
-          } else {
-            throw error
-          }
-        })
-        // @ts-ignore
-        .then(res => res.matchedCount === 1 || res.deletedCount === 1)
-    )
-  }
-
-  /**
-   * @param {Collection.Contingent["code"]} code Document's unique key value.
-   * @param {Collection.Contingent["desc"]} desc Update value for description field.
-   * @returns {Promise<boolean>} `true` if matching document is found, `false` otherwise.
-   */
-  update(code, desc) {
     return this.collection
-      .updateOne(queryExisted({ code }), {
-        $currentDate: { mtime: true },
-        ...(desc ? { $set: { desc } } : { $unset: { desc: 1 } })
-      })
-      .then(res => res.matchedCount === 1)
+      .updateOne(
+        { _id },
+        {
+          ...(desc ? { $set: { desc } } : { $unset: { desc: 1 } }),
+          $currentDate: { mtime: true }
+        }
+      )
+      .then(res => res.modifiedCount === 1)
   }
 }
 

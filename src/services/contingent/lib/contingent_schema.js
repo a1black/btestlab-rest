@@ -18,8 +18,25 @@ const {
 } = require('../../../libs/joi_schema_helpers')
 
 /**
+ * @param {ContingentSchemaOptions["code"]} [options] Validation options.
+ * @returns {Joi.StringSchema} Schema to validate contingent code.
+ */
+function contingentCodeSchema(options) {
+  let schema = Joi.string().empty(blankStringSchema()).trim().lowercase()
+
+  if (options?.maxLength) {
+    schema = schema.max(options.maxLength)
+  }
+  if (options?.pattern) {
+    schema = schema.pattern(options.pattern)
+  }
+
+  return schema
+}
+
+/**
  * @param {ContingentSchemaOptions} options Validation options.
- * @returns {Joi.ObjectSchema} A schema object to validate input data for update operation.
+ * @returns {Joi.ObjectSchema} Schema to validate input to update contingent document.
  */
 function contingentSchema(options) {
   return Joi.object({
@@ -35,16 +52,12 @@ function contingentSchema(options) {
 }
 
 module.exports = {
-  base: contingentSchema,
-  /** @type {(options: ContingentSchemaOptions) => Joi.ObjectSchema} Returns a schema object to validate input data for insert operation. */
-  full: options =>
+  /** @type {() => Joi.StringSchema} Schema to validate contingent code. */
+  code: () => contingentCodeSchema().required().prefs({ convert: true }),
+  /** @type {(options: ContingentSchemaOptions) => Joi.ObjectSchema} Returns schema to validate contingent document. */
+  contingentDoc: options =>
     contingentSchema(options).append({
-      code: Joi.string()
-        .empty(blankStringSchema())
-        .trim()
-        .lowercase()
-        .max(options.code.maxLength)
-        .pattern(options.code.pattern)
-        .required()
-    })
+      code: contingentCodeSchema(options.code).required()
+    }),
+  updateDoc: contingentSchema
 }

@@ -7,7 +7,7 @@ const contingentSchema = require('../../src/services/contingent/lib/contingent_s
 const employeeSchema = require('../../src/services/employee/lib/employee_schema')
 const lpuSchema = require('../../src/services/lpu/lib/lpu_schema')
 
-/** @type {() => Partial<Record<keyof Collection.Contingent, any>>} */
+/** @type {() => { code: string, desc: any }} */
 function invalidContingent() {
   return { code: '', desc: ['not a string'] }
 }
@@ -55,7 +55,7 @@ function randomString(options) {
 async function validContingent(id) {
   const options = (await config()).input.contingent
   const code = id ?? crypto.randomInt(1000).toString()
-  const { error, value } = contingentSchema.full(options).validate({
+  const { error, value } = contingentSchema.contingentDoc(options).validate({
     code,
     desc: randomString({ locale: 'ru', size: 32 })
   })

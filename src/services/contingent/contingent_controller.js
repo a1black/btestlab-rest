@@ -10,29 +10,42 @@ const { attempt: joiValidate } = require('joi')
 
 const contingentDataAccessor = require('./lib/contingent_data_accessor')
 const contingentSchema = require('./lib/contingent_schema')
-const { formatContingentDoc } = require('./lib/contingent_helper_functions')
+const {
+  formatContingentDoc,
+  linkContingentDoc
+} = require('./lib/contingent_helper_functions')
 
-/** @param {Request} req HTTP request object. */
-const dataAccessor = req => contingentDataAccessor(req.context.db)
-/** @type {(req: Request) => Collection.Contingent["code"]} */
-const idParam = req => req.params.code
-
-/** @type {RequestHandler} Insert new document in the database. */
-async function createContingent(req, res) {
-  /** @type {Collection.OmitBase<Collection.Contingent>} */
-  const doc = joiValidate(
-    req.body ?? {},
-    contingentSchema.full(req.config('input.contingent'))
-  )
-
-  const code = await dataAccessor(req).create(doc)
-
-  res.json({ id: code })
+/**
+ * @param {Request} req Client HTTP request.
+ */
+function dataAccessor(req) {
+  return contingentDataAccessor(req.context.db)
 }
 
-/** @type {RequestHandler} Flags requested document as deleted. */
+/**
+ * @param {Request} req Client HTTP request.
+ * @returns {Collection.Contingent["_id"]} Contingent code passed in URL.
+ */
+function idparam(req) {
+  return req.params.id
+}
+
+/** @type {RequestHandler} Creates new contingent document. */
+async function createContingent(req, res) {
+  const doc = joiValidate(
+    req.body ?? {},
+    contingentSchema.contingentDoc(req.config('input.contingent'))
+  )
+  const id = await dataAccessor(req).create(doc)
+
+  res.json({
+    links: linkContingentDoc(req, { _id: id })
+  })
+}
+
+/** @type {RequestHandler} Removes contingent document from the database. */
 async function deleteContingent(req, res) {
-  const success = await dataAccessor(req).remove(idParam(req))
+  const success = await dataAccessor(req).remove(idparam(req))
 
   if (!success) {
     throw createHttpError(404)
@@ -41,46 +54,42 @@ async function deleteContingent(req, res) {
   }
 }
 
-/** @type {RequestHandler} Returns list of existing (non-deleted) documents. */
+/** @type {RequestHandler} Returns list of documents. */
 async function listContingents(req, res) {
   const list = []
   for await (const doc of dataAccessor(req).list()) {
     list.push(formatContingentDoc(doc))
   }
 
-  res.json({ list })
+  res.json({ links: linkContingentDoc(req), list })
 }
 
-/** @type {RequestHandler} Returns data of an existing (non-deleted) document. */
+/** @type {RequestHandler} Returns contingent document. */
 async function readContingent(req, res) {
-  const doc = await dataAccessor(req).read(idParam(req))
+  const doc = await dataAccessor(req).read(idparam(req))
 
   if (!doc) {
     throw createHttpError(404)
   } else {
-    res.json({ doc: formatContingentDoc(doc) })
+    res.json({
+      doc: formatContingentDoc(doc),
+      links: linkContingentDoc(req, doc)
+    })
   }
 }
 
-/** @type {RequestHandler} Returns document's delete history. */
-async function readContingentHistory(req, res) {
-  const list = []
-  for await (const doc of dataAccessor(req).history(idParam(req))) {
-    list.push(formatContingentDoc(doc))
-  }
-
-  res.json({ list })
-}
-
-/** @type {RequestHandler} Updates data of an existing document. */
+/** @type {RequestHandler} Updates contingent document. */
 async function updateContingent(req, res) {
-  /** @type {Collection.OmitBase<Collection.Contingent, "code">} */
+  /** @type {Collection.OmitBase<Collection.Contingent>} */
   const doc = joiValidate(
     req.body ?? {},
-    contingentSchema.base(req.config('input.contingent'))
+    contingentSchema.updateDoc(req.config('input.contingent'))
   )
 
-  const success = await dataAccessor(req).update(idParam(req), doc.desc)
+  const success = await dataAccessor(req).update({
+    _id: idparam(req),
+    ...doc
+  })
 
   if (!success) {
     throw createHttpError(404)
@@ -94,6 +103,5 @@ module.exports = {
   deleteContingent,
   listContingents,
   readContingent,
-  readContingentHistory,
   updateContingent
 }

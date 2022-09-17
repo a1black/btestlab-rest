@@ -141,7 +141,7 @@ declare global {
     }
 
     interface Contingent extends BaseDocument {
-      code: string;
+      _id: string;
       desc?: string;
     }
 
@@ -158,7 +158,7 @@ declare global {
 
     interface Examination<T = unknown> extends BaseDocument {
       /** Contingent code. */
-      contingent: Contingent["code"];
+      contingent: mongodb.InferIdType<Collection.Contingent>;
       /** Fullname of document creator. */
       cuser?: {
         firstname?: string;
