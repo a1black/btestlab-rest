@@ -240,6 +240,8 @@ declare global {
     interface Request {
       /** Json web token payload. */
       auth: JwtPayload;
+      /** Verifies that user has one of listed privileges, for `and` condition use array arguments. */
+      claim: (...claims: Array<string | string[]>) => boolean;
       /** Method for fetching configuration values. */
       config: <K extends Join<Paths<ApplicationConfiguration>, ".">>(
         path: K,
