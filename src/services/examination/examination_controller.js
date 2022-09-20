@@ -12,8 +12,12 @@ const { attempt: joiValidate } = require('joi')
 
 const examinationDataAccessor = require('./lib/examination_data_accessor')
 const examinationSchema = require('./lib/examination_schema')
-const { formatExaminationDoc } = require('./lib/examination_helper_functions')
-const { objectSetShallow: objectSet } = require('../../libs/functional_helpers')
+const objectSet = require('../../libs/objectset')
+const testResultSchema = require('./lib/test_result_schema')
+const {
+  formatExaminationDoc,
+  linkExaminationDoc
+} = require('./lib/examination_helper_functions')
 
 /**
  * Returns methods to access document collection.
@@ -26,57 +30,41 @@ function dataAccessor(req) {
 
 /**
  * @param {Request} req HTTP request object.
- * @returns {ExaminationDocument["uid"]}} Document's unique identifier.
+ * @returns {examinationDataAccessor.ExaminationIdIndex} Query parameters.
  */
-function idParam(req) {
+function idparam(req) {
   /** @type {any} */
   const id = {}
-  objectSet(id, 'date', req.params.date)
+  objectSet(id, 'accounted', req.params.date)
   objectSet(id, 'number', req.params.number)
+  objectSet(id, 'type', req.params.type)
 
   return id
 }
 
-/**
- * @param {Request} req HTTP request object.
- * @returns {import("./lib/examination_result_type").TestResultHelper}} Test result helper object.
- */
-function typeParam(req) {
-  // @ts-ignore
-  return req.params.type
-}
-
-/** @type {RequestHandler} Insertes new document in the database. */
+/** @type {RequestHandler} Creates new examination document or restores deleted. */
 async function createExamination(req, res) {
-  const { date } = idParam(req)
-  const type = typeParam(req)
+  const { type, ...urlparams } = idparam(req)
 
-  const { number, ...doc } = joiValidate(
-    req.body ?? {},
-    examinationSchema
-      .examination(type.schema, req.config('input.examination'))
-      .append({
-        number: examinationSchema.number().required()
-      })
+  /** @type {Collection.OmitBase<ExaminationDocument>} */
+  const doc = joiValidate(
+    Object.assign(urlparams, req.body, { type }),
+    examinationSchema.examinationDoc(
+      testResultSchema(type),
+      req.config('input.examination')
+    )
   )
-  // Set examination `type` and `uid` on inserted document
-  doc.type = type.name
-  doc.uid = {
-    date,
-    number
-  }
 
   await dataAccessor(req).create(doc, { user: req.user })
 
-  res.json({ id: number })
+  res.json({ links: linkExaminationDoc(req, doc) })
 }
 
-/** @type {RequestHandler} Removes document from the database. */
+/** @type {RequestHandler} Marks examination document as deleted. */
 async function deleteExamination(req, res) {
-  // NOTE: Since field `uid` only unique within documents of same type, `type` MUST be provided as part of `uid`.
-  const uid = { type: typeParam(req).name, ...idParam(req) }
-
-  const success = await dataAccessor(req).remove(uid, { user: req.user })
+  const success = await dataAccessor(req).remove(idparam(req), {
+    user: req.user
+  })
 
   if (!success) {
     throw createHttpError(404)
@@ -85,54 +73,52 @@ async function deleteExamination(req, res) {
   }
 }
 
-/** @type {RequestHandler} Returns list of documents. */
+/** @type {RequestHandler} Returns list of examination documents. */
 async function listExaminations(req, res) {
-  const { date } = idParam(req)
-  const type = typeParam(req)
   const list = []
-
-  for await (const doc of dataAccessor(req).list({ type: type.name, date })) {
-    list.push(type.decoratorList(formatExaminationDoc)(doc))
+  for await (const doc of dataAccessor(req).list(idparam(req))) {
+    list.push(formatExaminationDoc(doc))
   }
 
-  res.json({ list })
+  res.json({
+    defaults: formatExaminationDoc(idparam(req)),
+    links: linkExaminationDoc(req, idparam(req)),
+    list
+  })
 }
 
-/** @type {RequestHandler} Returns a document. */
+/** @type {RequestHandler} Returns examination document. */
 async function readExamination(req, res) {
-  const type = typeParam(req)
-  // NOTE: Since field `uid` only unique within documents of same type, `type` MUST be provided as part of `uid`.
-  const uid = { type: type.name, ...idParam(req) }
-
-  const doc = await dataAccessor(req).read(uid)
+  const doc = await dataAccessor(req).read(idparam(req))
 
   if (!doc) {
     throw createHttpError(404)
   } else {
-    res.json({ doc: type.decoratorDoc(formatExaminationDoc)(doc) })
+    res.json({
+      doc: formatExaminationDoc(doc),
+      links: linkExaminationDoc(req, doc)
+    })
   }
 }
 
-/** @type {RequestHandler} Updates a document. */
+/** @type {RequestHandler} Replaces examination document with modified version. */
 async function updateExamination(req, res) {
-  const type = typeParam(req)
-  const uid = idParam(req)
-
-  /** @type {Collection.OmitBase<ExaminationDocument, "type" | "uid">} */
+  const { type } = idparam(req)
+  /** @type {Collection.OmitBase<ExaminationDocument>} */
   const doc = joiValidate(
-    req.body ?? {},
-    examinationSchema.examination(type.schema, req.config('input.examination'))
+    Object.assign({}, req.body, idparam(req)),
+    examinationSchema.examinationDoc(
+      testResultSchema(type),
+      req.config('input.examination')
+    )
   )
 
-  const success = await dataAccessor(req).replace(
-    { type: type.name, uid, ...doc },
-    { user: req.user }
-  )
+  const success = await dataAccessor(req).replace(doc, { user: req.user })
 
   if (!success) {
     throw createHttpError(404)
   } else {
-    res.sendOk()
+    res.json({ links: linkExaminationDoc(req, doc) })
   }
 }
 

@@ -2,7 +2,7 @@
 
 /**
  * @typedef {Collection.Examination<Dict<any>>} ExaminationDocument
- * @typedef {ExaminationDocument["uid"] & { type: ExaminationDocument["type"] }} ExaminationDocumentUid
+ * @typedef {Partial<Pick<Collection.Examination, "accounted" | "number">> & Pick<Collection.Examination, "type">} ExaminationIdIndex
  *
  * @typedef {import("mongodb").Db} mongodb.Db
  * @typedef {import("mongodb").Collection<ExaminationDocument>} ExaminationCollection
@@ -12,57 +12,21 @@
  * @typedef {{ user?: Partial<User> }} UpdateOptions
  */
 
+const commonQueries = require('../../../libs/mongo/queries')
+const objectSet = require('../../../libs/objectset')
 const { CollectionNameEnum } = require('../../../globals')
-const { objectSetShallow } = require('../../../libs/functional_helpers')
-const {
-  isDuplicateMongoError,
-  queryDeleted,
-  queryExisted
-} = require('../../../libs/mongodb_helpers')
+const { isDuplicateMongoError } = require('../../../libs/mongo/utils')
 
 /**
  * @param {Partial<User>} [user] Application user that initiated operation.
- * @returns {{ firstname?: string, lastname?: string } | undefined} Fullname document.
+ * @returns {{ firstname?: string, lastname?: string } | undefined} User's fullname document.
  */
 function author(user) {
   const author = {}
-  objectSetShallow(author, 'firstname', user?.firstname)
-  objectSetShallow(author, 'lastname', user?.lastname)
+  objectSet(author, 'firstname', user?.firstname)
+  objectSet(author, 'lastname', user?.lastname)
 
   return Object.keys(author).length ? author : undefined
-}
-
-/**
- * Updates query to match documents with provided `uid`.
- *
- * @param {ExaminationFilter} filter Document selection criteria.
- * @param {Partial<ExaminationDocumentUid>} uid Document's unique identifier.
- * @returns {ExaminationFilter} Modified criteria object.
- */
-function queryByUID(filter, uid) {
-  const query = { ...filter }
-
-  objectSetShallow(query, 'uid.date', uid.date)
-  objectSetShallow(query, 'uid.number', uid.number)
-  objectSetShallow(query, 'type', uid.type)
-
-  return query
-}
-
-/**
- * Returns criteria to sort documents using unique index of `uid` field.
- *
- * @param {boolean} [asc=true] If `false` sort document in descending order.
- * @returns {import("mongodb").Sort} Document sorting criteria.
- */
-function sortByUID(asc = true) {
-  const direction = asc === false ? -1 : 1
-
-  return {
-    type: direction,
-    'uid.date': direction,
-    'uid.number': direction
-  }
 }
 
 class ExaminationDataAccessor {
@@ -85,19 +49,23 @@ class ExaminationDataAccessor {
    *
    * @param {Collection.OmitBase<ExaminationDocument, "cuser" | "muser">} doc New document to insert in the database.
    * @param {UpdateOptions} options Insert options.
-   * @returns {Promise<Collection.Examination["uid"]?>} Unique identifier of inserted document.
+   * @returns {Promise<boolean>} `true` if new document was added to the database, `false` otherwise.
    */
   create(doc, options) {
-    const { uid, type, ...data } = doc
-    const insertDoc = { uid, type, ...data, ctime: '$$NOW' }
+    const { accounted, number, type, ...data } = doc
+    const id = { type, accounted, number }
+    const insertDoc = { ...id, ...data, ctime: '$$NOW' }
     const updateDoc = { mtime: '$$NOW' }
 
-    objectSetShallow(insertDoc, 'cuser', author(options.user))
-    objectSetShallow(updateDoc, 'muser', author(options.user))
+    objectSet(insertDoc, 'cuser', author(options.user))
+    objectSet(updateDoc, 'muser', author(options.user))
+
+    const queryDeleted = commonQueries.deletedDocQuery(true)
+    const queryByExamId = commonQueries.subdocQuery(id, ...Object.keys(id))
 
     return this.collection
       .updateOne(
-        queryDeleted(queryByUID({}, { type, ...uid })),
+        queryByExamId(queryDeleted()),
         [
           {
             $replaceWith: {
@@ -111,25 +79,26 @@ class ExaminationDataAccessor {
         ],
         { upsert: true }
       )
-      .then(res =>
-        res.modifiedCount === 1 || res.upsertedCount === 1 ? uid : null
-      )
+      .then(res => res.modifiedCount === 1 || res.upsertedCount === 1)
   }
 
   /**
    * Updates document to be marked as deleted.
    *
-   * @param {ExaminationDocumentUid} uid Document's unique identifier.
+   * @param {ExaminationIdIndex} doc Unique composite index on the collection.
    * @param {UpdateOptions} options Delete options.
    * @returns {Promise<boolean>} `true` if matching document is modified, `false` otherwise.
    */
-  remove(uid, options) {
+  remove(doc, options) {
     /** @type {{ muser?: ExaminationDocument["muser"] }} */
     const updateDoc = {}
-    objectSetShallow(updateDoc, 'muser', author(options.user))
+    objectSet(updateDoc, 'muser', author(options.user))
+
+    const queryExisted = commonQueries.deletedDocQuery(false)
+    const queryByExamId = commonQueries.subdocQuery(doc, ...Object.keys(doc))
 
     return this.collection
-      .updateOne(queryExisted(queryByUID({}, uid)), {
+      .updateOne(queryByExamId(queryExisted()), {
         $set: updateDoc,
         $currentDate: { dtime: true, mtime: true }
       })
@@ -138,53 +107,65 @@ class ExaminationDataAccessor {
 
   /**
    * Returns cursor over matched, non-deleted documents in the collection.
-
-   * @param {ExaminationFilter & { date: ExaminationDocument["uid"]["date"] }} [filter] Document selection criteria.
+   *
+   * @param {Partial<ExaminationDocument>} [filter] Document selection criteria.
    * @returns {ExaminationFindCursor} Cursor over matched documents.
    */
   list(filter) {
-    const { date, ...query } = filter ?? {}
+    const { accounted, type, ...query } = filter ?? {}
+    const id = { accounted, type }
+
+    const queryExisted = commonQueries.deletedDocQuery(false)
+    const queryByExamId = commonQueries.subdocQuery(id, ...Object.keys(id))
 
     return this.collection
-      .find(queryExisted(queryByUID(query, { date })))
-      .sort(sortByUID(false))
+      .find(queryByExamId(queryExisted(query)))
+      .sort({ type: 1, accounted: 1, number: 1 })
       .project({
         _id: 0,
-        uid: 1,
-        type: 1,
+        accounted: 1,
         contingent: 1,
-        lpu: 1,
-        location: 1,
         examined: 1,
-        result: 1
+        location: 1,
+        lpu: 1,
+        number: 1,
+        result: 1,
+        type: 1
       })
   }
 
   /**
-   * @param {ExaminationDocumentUid} uid Document's unique identifier.
+   * @param {ExaminationIdIndex} doc Unique composite index on the collection.
    * @returns {Promise<ExaminationDocument?>} Matched document or `null`.
    */
-  read(uid) {
-    return this.collection.findOne(queryExisted(queryByUID({}, uid)))
+  read(doc) {
+    const queryByExamId = commonQueries.subdocQuery(doc, ...Object.keys(doc))
+
+    // NOTE: Allow user to access documents marked as deleted.
+    return this.collection.findOne(queryByExamId())
   }
 
   /**
    * Replaces document that is not marked as deleted.
    *
-   * @param {Collection.OmitBase<ExaminationDocument, "cuser" | "muser">} doc Replacement data.
+   * @param {Collection.OmitBase<ExaminationDocument, "cuser" | "muser">} doc Replacement examination document.
    * @param {UpdateOptions} options Update options.
    * @returns {Promise<boolean>} `true` if matching document is modified, `false` otherwise.
    */
   replace(doc, options) {
-    const { uid, type, ...data } = doc
-    const replaceDoc = { uid, type, ...data }
+    const { type, accounted, number, ...data } = doc
+    const id = { type, accounted, number }
+    const replaceDoc = { ...id, ...data }
     const updateDoc = { mtime: '$$NOW' }
 
-    objectSetShallow(updateDoc, 'muser', author(options.user))
+    objectSet(updateDoc, 'muser', author(options.user))
+
+    const queryExisted = commonQueries.deletedDocQuery(false)
+    const queryByExamId = commonQueries.subdocQuery(id, ...Object.keys(id))
 
     return this.collection
       .updateOne(
-        queryExisted(queryByUID({}, { type, ...uid })),
+        queryByExamId(queryExisted()),
         [
           {
             $replaceWith: {

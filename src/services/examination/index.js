@@ -1,59 +1,42 @@
 'use strict'
 
-const Joi = require('joi')
 const createHttpError = require('http-errors')
 const express = require('express')
 
-const ExaminationResultType = require('./lib/examination_result_type')
+const duplicateErrorHandler = require('./lib/examination_duplicate_error_handler')
 const examinationController = require('./examination_controller')
 const examinationSchema = require('./lib/examination_schema')
-const {
-  fetchUserRequestHandler: fetchUser,
-  verifyJwtRequestHandler: verifyJwt
-} = require('../../libs/access_control_helpers')
-const { serviceCodeErrorHandler } = require('../../libs/error_handlers')
+const verifyJwt = require('../../libs/middleware/verify_jwt')
+const { joiErrorHandler } = require('../../libs/error_handlers')
 
 /** @type {(config: ApplicationConfiguration) => express.IRouter} */
 module.exports = config =>
   express
     .Router()
     .param('date', (req, res, next, date) => {
-      try {
-        req.params.date = Joi.attempt(
-          Joi.attempt(date, Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/)),
-          examinationSchema.partitionDate().required()
-        )
-        next()
-      } catch (error) {
-        next(createHttpError(404))
-      }
+      const { error, value } = examinationSchema.accountedParam().validate(date)
+      req.params.date = value
+      next(error ? createHttpError(404) : undefined)
     })
     .param('number', (req, res, next, number) => {
-      const { error, value } = examinationSchema
-        .number()
-        .required()
-        .validate(number)
+      const { error, value } = examinationSchema.numberParam().validate(number)
       req.params.number = value
       next(error ? createHttpError(404) : undefined)
     })
     .param('type', (req, res, next, type) => {
-      const { value } = Joi.string().lowercase().validate(type)
-      // @ts-ignore
-      req.params.type = ExaminationResultType(value)
-      next(req.params.type ? undefined : createHttpError(404))
+      const { error, value } = examinationSchema.typeParam().validate(type)
+      req.params.type = value
+      next(error ? createHttpError(404) : undefined)
     })
-    .use(verifyJwt(config.accessToken), fetchUser())
+    .use(verifyJwt(config.accessToken))
     .delete('/:type/:date/:number', examinationController.deleteExamination)
     .get('/:type/:date/:number', examinationController.readExamination)
     .get('/:type/:date', examinationController.listExaminations)
-    .post(
-      '/:type/:date',
-      express.json(),
-      examinationController.createExamination
-    )
+    .post('/:type', express.json(), examinationController.createExamination)
     .put(
       '/:type/:date/:number',
       express.json(),
       examinationController.updateExamination
     )
-    .use(serviceCodeErrorHandler('examination'))
+    // TODO: Add Duplication error handler
+    .use(joiErrorHandler({ prefix: 'examination' }), duplicateErrorHandler)

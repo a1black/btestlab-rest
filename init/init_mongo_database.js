@@ -15,8 +15,8 @@ db.getCollection('employee').createIndex(
 
 // Create examination collectn and indexes
 db.getCollection('examination').createIndex(
-  { type: 1, 'uid.date': 1, 'uid.number': 1 },
-  { unique: true }
+  { type: 1, accounted: 1, number: 1 },
+  { unique: true, name: 'examimation_id' }
 )
 
 // Create lpu collection and indexes

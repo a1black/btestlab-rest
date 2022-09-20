@@ -157,9 +157,11 @@ declare global {
     }
 
     interface Examination<T = unknown> extends BaseDocument {
+      /** Accounting date for analytic reporting. */
+      accounted: Date;
       /** Contingent code. */
-      contingent: mongodb.InferIdType<Collection.Contingent>;
-      /** Fullname of document creator. */
+      contingent: mongodb.InferIdType<Contingent>;
+      /** Fullname of an employee who created current document. */
       cuser?: {
         firstname?: string;
         lastname?: string;
@@ -171,12 +173,14 @@ declare global {
       /** Region code of health facility. */
       location: string;
       /** Code of health facility that supplied test sample. */
-      lpu: InferIdType<Lpu>;
-      /** Fullname of an author of last modification to the document. */
+      lpu: mongodb.InferIdType<Lpu>;
+      /** Fullname of an author who modified current document. */
       muser?: {
         firstname?: string;
         lastname?: string;
       };
+      /** Number assigned to an examination. */
+      number: number;
       /** Patient information. */
       patient?: {
         birthdate: Date;
@@ -194,11 +198,6 @@ declare global {
       tests?: Array<T>;
       /** Code of performed tests. */
       type: ExaminationType;
-      /** Collection partition key. */
-      uid: {
-        date: Date;
-        number: number;
-      };
     }
 
     interface Lpu extends BaseDocument {

@@ -5,7 +5,10 @@ const crypto = require('crypto')
 const config = require('../../src/configs')
 const contingentSchema = require('../../src/services/contingent/lib/contingent_schema')
 const employeeSchema = require('../../src/services/employee/lib/employee_schema')
+const examinationSchema = require('../../src/services/examination/lib/examination_schema')
 const lpuSchema = require('../../src/services/lpu/lib/lpu_schema')
+const testResultSchema = require('../../src/services/examination/lib/test_result_schema')
+const { ExaminationTypeEnum } = require('../../src/globals')
 
 /** @type {() => { code: string, desc: any }} */
 function invalidContingent() {
@@ -86,6 +89,56 @@ async function validEmployee() {
   }
 }
 
+/** @type {() => Promise<Collection.OmitBase<Collection.Examination<TestResult.Hiv> & { _date: string }>>} */
+async function validExamination() {
+  const date = new Date()
+  const result = {
+    antihiv: true,
+    elisa: randomString({ locale: 'ru', size: 32 }),
+    hiv1p24ag: true
+  }
+  const type = ExaminationTypeEnum.HIV
+
+  const { error, value } = examinationSchema
+    .examinationDoc(testResultSchema(type), (await config()).input.examination)
+    .validate({
+      accounted: date,
+      contingent: crypto.randomInt(100, 1000).toString(),
+      delivered: new Date(),
+      examined: new Date(),
+      location: crypto.randomUUID(),
+      lpu: crypto.randomUUID(),
+      number: crypto.randomInt(1, 1000),
+      taken: new Date(),
+      type,
+      result,
+      tests: [
+        {
+          antihiv: true,
+          elisa: randomString({ locale: 'ru', size: 32 }),
+          hiv1p24ag: true
+        },
+        {
+          antihiv: true,
+          elisa: randomString({ locale: 'ru', size: 32 }),
+          hiv1p24ag: true
+        },
+        result
+      ]
+    })
+
+  if (error) {
+    throw error
+  } else {
+    return {
+      ...value,
+      _date:
+        date.getFullYear().toString() +
+        (date.getMonth() + 1).toString().padStart(2, '0')
+    }
+  }
+}
+
 /** @type {() => Promise<Collection.OmitBase<Collection.Lpu>>} */
 async function validLpu() {
   const options = (await config()).input.lpu
@@ -108,5 +161,6 @@ module.exports = {
   randomString,
   validContingent,
   validEmployee,
+  validExamination,
   validLpu
 }

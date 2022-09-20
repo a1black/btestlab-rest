@@ -35,6 +35,9 @@
     }
   },
   "examination": {
+    "contingent": {
+      "maxLength": 10
+    },
     "date": {
       "min": "1900-01-01"
     },
@@ -47,9 +50,6 @@
     },
     "tests": {
       "maxSize": 10
-    },
-    "text": {
-      "maxLength": 256
     }
   },
   "lpu": {
