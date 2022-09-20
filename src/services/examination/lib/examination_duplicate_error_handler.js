@@ -16,11 +16,13 @@ module.exports = async (err, req, res, next) => {
   if (
     examinationDataAccessor.isDuplicateError(err, 'accounted', 'number', 'type')
   ) {
+    /** @type {import("./examination_data_accessor").ExaminationIdIndex} */
     // @ts-ignore
-    const doc = await examinationDataAccessor(req.context.db).read(err.keyValue)
+    const examid = err.keyValue
+    const doc = await examinationDataAccessor(req.context.db).read(examid)
 
     objectSet(err, 'response.doc', doc ? formatExaminationDoc(doc) : null)
-    objectSet(err, 'response.links', doc ? linkExaminationDoc(req, doc) : null)
+    objectSet(err, 'response.links', linkExaminationDoc(req, doc ?? examid))
   }
 
   next(err)

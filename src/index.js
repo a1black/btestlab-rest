@@ -14,9 +14,8 @@ const configuration = require('./configs')
 const internalization = require('./libs/i18n')
 const router = require('./routes')
 const {
-  joiErrorHandler,
-  jsonErrorRequestHandler,
-  mongoErrorHandler
+  dbErrorHandler,
+  jsonErrorRequestHandler
 } = require('./libs/error_handlers')
 const { httpResponseAliases } = require('./libs/http_service_helpers')
 
@@ -58,7 +57,7 @@ async function application() {
     // load routing
     router(config, app)
     // Attach error handlers
-    app.use(joiErrorHandler, mongoErrorHandler, jsonErrorRequestHandler)
+    app.use(dbErrorHandler, jsonErrorRequestHandler)
 
     return [
       app,

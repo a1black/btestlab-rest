@@ -4,8 +4,6 @@
  * @typedef {import("express").ErrorRequestHandler} ErrorRequestHandler
  */
 
-const createHttpError = require('http-errors')
-
 const contingentDataAccessor = require('./contingent_data_accessor')
 const objectSet = require('../../../libs/objectset')
 const {
@@ -17,21 +15,14 @@ const {
 module.exports = async (err, req, res, next) => {
   // NOTE: Code duplication can only be raised on inserting new document.
   if (contingentDataAccessor.isDuplicateError(err, '_id')) {
-    const code = err.keyValue._id
-    const doc = (await contingentDataAccessor(req.context.db).read(code)) ?? {
-      _id: code
-    }
-    const response = {}
+    const _id = err.keyValue._id
+    const doc = await contingentDataAccessor(req.context.db).read(_id)
 
-    objectSet(
-      response,
-      'errors.code',
-      req.i18n().t('error.duplicate', { _: 'duplicate' })
-    )
-    objectSet(response, 'doc', formatContingentDoc(doc))
-    objectSet(response, 'links', linkContingentDoc(req, doc))
+    err.keyPattern = { code: 1 }
+    err.keyValue = { code: _id }
 
-    next(createHttpError(409, 'Document Already Exists', { response }))
+    objectSet(err, 'response.doc', doc ? formatContingentDoc(doc) : undefined)
+    objectSet(err, 'response.links', linkContingentDoc(req, doc ?? { _id }))
   }
 
   next(err)

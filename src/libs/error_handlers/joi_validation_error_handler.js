@@ -1,6 +1,9 @@
 'use strict'
 
-/** @typedef {import("node-polyglot").InterpolationOptions} InterpolationOptions */
+/**
+ * @typedef {import("express").ErrorRequestHandler} ErrorRequestHandler
+ * @typedef {import("node-polyglot").InterpolationOptions} InterpolationOptions
+ */
 
 const Joi = require('joi')
 const createHttpError = require('http-errors')
@@ -9,7 +12,7 @@ const dateutils = require('../date_utils')
 const objectSet = require('../objectset')
 
 /**
- * @param {I18nFactoryFunction} provider Function to spawn interpolation object.
+ * @param {I18nFactoryFunction} provider Interpolation instance factory method.
  */
 function i18nHelper(provider) {
   // @ts-ignore
@@ -55,7 +58,7 @@ function intlOptionsPopulationChain() {
         intl.limit = limit
         intl.smart_count = limit
       } else if (limit instanceof Date) {
-        intl.limit = dateutils.toShortISOString(limit)
+        objectSet(intl, 'limit', dateutils.toShortISOString(limit))
       } else {
         intl.limit = limit
       }
@@ -77,10 +80,10 @@ function intlOptionsPopulationChain() {
 
 /**
  * @param {Joi.ValidationError["details"]} errors List of validation errors.
- * @param {{ i18n: any, service?: string }} options Interpolation provider and service which raised the error.
+ * @param {{ i18n: any, prefix?: string }} options Interpolation provider and prefix for validation errors.
  * @returns {Dict<any>} Translated error messages shaped base on user's input.
  */
-function processErrorMessages(errors, { i18n, service }) {
+function processErrorMessages(errors, { i18n, prefix }) {
   /** @type {ReturnType<i18nHelper>} Lookup translation in list of Joi errors. */
   const joiI18n = (options, ...path) => i18n(options, 'joi', ...path)
   /** @type {ReturnType<i18nHelper>} Lookup translation in list of generic error messages. */
@@ -95,7 +98,7 @@ function processErrorMessages(errors, { i18n, service }) {
 
     // Modify error stack or error information
     if (type === 'any.ref') {
-      // Skip errors because of failed validation of depended key.
+      // Skip errors caused by invalid depended key.
       continue
     } else if (type === 'object.with' && typeof context.peer === 'string') {
       // Replace error on object field with error on required child field
@@ -147,7 +150,7 @@ function processErrorMessages(errors, { i18n, service }) {
 
     const message =
       joiI18n(intlOps, type) ??
-      errorI18n(intlOps, service, path) ??
+      errorI18n(intlOps, prefix, path) ??
       errorI18n({}, 'invalid') ??
       'invalid'
 
@@ -157,19 +160,19 @@ function processErrorMessages(errors, { i18n, service }) {
   return errorMessages
 }
 
-/** @type {import("express").ErrorRequestHandler} Processes errors raised by Joi validation schema. */
-module.exports = (err, req, res, next) => {
+/** @type {(options: { prefix?: string }) => ErrorRequestHandler} Processes errors raised by Joi validation schema. */
+module.exports = options => (err, req, res, next) => {
   if (!Joi.isError(err)) {
     next(err)
   } else {
+    const errors = processErrorMessages(err.details ?? [], {
+      i18n: i18nHelper(req.i18n),
+      prefix: options.prefix
+    })
+
     next(
       createHttpError(400, 'Document Failed Validation', {
-        response: Object.assign(err.response ?? {}, {
-          errors: processErrorMessages(err.details ?? [], {
-            i18n: i18nHelper(req.i18n),
-            service: err.serviceCode
-          })
-        })
+        response: Object.assign(err.response ?? {}, { errors })
       })
     )
   }

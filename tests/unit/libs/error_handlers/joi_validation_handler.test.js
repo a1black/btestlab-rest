@@ -9,8 +9,9 @@
 
 const Joi = require('joi')
 
-const errorHandler = require('../../../../src/libs/error_handlers/joi_validation_error_handler')
+const joiErrorHandler = require('../../../../src/libs/error_handlers/joi_validation_error_handler')
 
+const errorHandler = (options => joiErrorHandler(options))({})
 const mockT = () => jest.fn((_, options) => options?._)
 /** @type {(t: any) => any} */
 const stabReq = t => ({ i18n: () => ({ t }) })
@@ -35,7 +36,6 @@ function i18nCallStackFixture(t, intlOps, options) {
   expect(t).toHaveBeenNthCalledWith(3 + shift, 'error.invalid', expect.anything())
 }
 
-/** @type {(next: Function, error: Joi.ValidationError) => void} */
 /**
  * @param {Function} next Next request handler mock function.
  * @param {{ error?: Joi.ValidationError, path?: any[]}} options Assertion options.
@@ -91,7 +91,7 @@ describe('array validation error', () => {
 })
 
 describe('date validation error', () => {
-  test('date limit is now string', () => {
+  test('date limit is "now" string', () => {
     const next = jest.fn()
     const t = mockT()
     const { error } = Joi.object({

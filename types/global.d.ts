@@ -107,8 +107,6 @@ declare global {
     response?: Dict<any>;
     /** If `true` allow user to see server error message, `false` shows default message. */
     expose?: boolean;
-    /** Name of service that raised error. */
-    serviceCode?: string;
     /** HTTP response status code. */
     status?: number;
     /** Alias for `status`. */
