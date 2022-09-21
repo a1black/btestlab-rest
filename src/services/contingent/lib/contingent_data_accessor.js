@@ -9,7 +9,7 @@
  */
 
 const { CollectionNameEnum } = require('../../../globals')
-const { isDuplicateMongoError } = require('../../../libs/mongodb_helpers')
+const { isDuplicateMongoError } = require('../../../libs/mongo/utils')
 
 class ContingentDataAccessor {
   /**
@@ -22,7 +22,7 @@ class ContingentDataAccessor {
   }
 
   /**
-   * @param {Collection.OmitBase<Collection.Contingent> & { code: ContingentIdType }} doc New document to insert in the database.
+   * @param {Collection.OmitBase<Collection.Contingent> & { code: ContingentIdType }} doc New document added to the collection.
    * @returns {Promise<ContingentIdType>} Primary key.
    */
   create(doc) {

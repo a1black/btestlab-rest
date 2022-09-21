@@ -4,6 +4,7 @@
  * @typedef {import("mongodb").Db} mongodb.Db
  * @typedef {import("mongodb").Collection<User>} UserCollection
  * @typedef {import("mongodb").FindCursor<Partial<User>>} UserFindCursor
+ * @typedef {import("mongodb").InferIdType<User>} UserIdType
  */
 
 const { CollectionNameEnum } = require('../../../globals')
@@ -35,7 +36,7 @@ class UserDataAccessor {
   }
 
   /**
-   * @param {Collection.InferIdType<User>} id Document's primary key.
+   * @param {UserIdType} id Primary key.
    * @returns {Promise<User?>} Matched document or `null`.
    */
   read(id) {

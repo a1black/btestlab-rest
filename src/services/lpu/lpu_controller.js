@@ -25,7 +25,7 @@ function dataAccessor(req) {
 
 /**
  * @param {Request} req Client HTTP request.
- * @returns {Collection.Lpu["uid"]} Document's unique identifier.
+ * @returns {Collection.Lpu["uid"]} Document identifier passed in URL.
  */
 function idparam(req) {
   return req.params.uid

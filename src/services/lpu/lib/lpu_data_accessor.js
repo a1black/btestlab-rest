@@ -5,27 +5,14 @@
  * @typedef {import("mongodb").Collection<Collection.Lpu>} LpuCollection
  * @typedef {import("mongodb").Filter<Collection.Lpu>} LpuFilter
  * @typedef {import("mongodb").FindCursor<Collection.Lpu>} LpuFindCursor
+ * @typedef {import("mongodb").InferIdType<Collection.Lpu>} LpuIdType
  */
 
 const crypto = require('crypto')
 
+const commonQueries = require('../../../libs/mongo/queries')
+const mongoutils = require('../../../libs/mongo/utils')
 const { CollectionNameEnum } = require('../../../globals')
-const {
-  generateIdDecorator,
-  isDuplicateMongoError,
-  queryDeleted,
-  queryExisted
-} = require('../../../libs/mongodb_helpers')
-
-/**
- * Returns decorator to update select criteria to match provided `uid`.
- *
- * @param {Collection.Lpu["uid"]} uid Document's unique identifier.
- * @returns {(query: LpuFilter) => LpuFilter} Decorator function.
- */
-function uidQueryDecorator(uid) {
-  return query => ({ uid, ...query })
-}
 
 class LpuDataAccessor {
   /**
@@ -37,8 +24,10 @@ class LpuDataAccessor {
     this.collection = db.collection(name)
 
     const createCallback = this.create.bind(this)
-    // @ts-ignore
-    this.create = generateIdDecorator(createCallback, crypto.randomUUID)
+    this.create = mongoutils.generateIdDecorator(
+      createCallback,
+      crypto.randomUUID
+    )
   }
 
   /**
@@ -46,15 +35,16 @@ class LpuDataAccessor {
    *
    * @param {Collection.Lpu["uid"]} uid Document's unique identifier.
    * @param {boolean} active New state value.
-   * @returns {Promise<boolean>} `true` if matching document is found, `false` otherwise.
+   * @returns {Promise<boolean>} `true` if matching document was found, `false` otherwise.
    */
   activate(uid, active) {
-    const queryByUID = uidQueryDecorator(uid)
+    const queryByUID = commonQueries.subdocQuery({ uid })
+    const queryExisted = commonQueries.deletedDocQuery(false)
 
     // NOTE: Method returns `true` even if document already in required state.
     return this.collection
       .updateOne(
-        queryExisted(queryByUID({})),
+        queryByUID(queryExisted()),
         active ? { $unset: { xtime: 1 } } : { $currentDate: { xtime: true } }
       )
       .then(res => res.matchedCount === 1)
@@ -63,18 +53,20 @@ class LpuDataAccessor {
   /**
    * Inserts new document or replaces document flaged as deleted.
    *
-   * @param {Collection.Lpu} doc New document to insert in the database.
-   * @returns {Promise<Collection.InferIdType<Collection.Lpu>?>} Primary key.
+   * @param {Collection.Lpu} doc New document added to the collection.
+   * @returns {Promise<LpuIdType>} Primary key.
    */
   create(doc) {
     const { _id, uid, ...data } = doc
     // NOTE: Lpu created inactive to hold-off its apperence in selection lists.
     const insertDoc = { _id, uid, ...data, ctime: '$$NOW', xtime: '$$NOW' }
-    const queryByUID = uidQueryDecorator(uid)
+
+    const queryByUID = commonQueries.subdocQuery({ uid })
+    const queryDeleted = commonQueries.deletedDocQuery(true)
 
     return this.collection
       .updateOne(
-        queryDeleted(queryByUID({})),
+        queryByUID(queryDeleted()),
         [
           {
             $replaceWith: {
@@ -88,16 +80,16 @@ class LpuDataAccessor {
         ],
         { upsert: true }
       )
-      .then(res =>
-        res.modifiedCount === 1 || res.upsertedCount === 1 ? _id : null
-      )
+      .then(() => _id)
   }
 
   /**
    * @returns {LpuFindCursor} Cursor over non-deleted documents in the collection.
    */
   list() {
-    return this.collection.find(queryExisted({})).sort('uid', 1)
+    const queryExisted = commonQueries.deletedDocQuery(false)
+
+    return this.collection.find(queryExisted()).sort('uid', 1)
   }
 
   /**
@@ -113,13 +105,14 @@ class LpuDataAccessor {
    * Updates document to be marked as deleted.
    *
    * @param {Collection.Lpu["uid"]} uid Document's unique identifier.
-   * @returns {Promise<boolean>} `true` if matching document is modified, `false` otherwise.
+   * @returns {Promise<boolean>} `true` if matching document was modified, `false` otherwise.
    */
   remove(uid) {
-    const queryByUID = uidQueryDecorator(uid)
+    const queryByUID = commonQueries.subdocQuery({ uid })
+    const queryExisted = commonQueries.deletedDocQuery(false)
 
     return this.collection
-      .updateOne(queryExisted(queryByUID({})), {
+      .updateOne(queryByUID(queryExisted()), {
         $currentDate: { dtime: true, mtime: true }
       })
       .then(res => res.modifiedCount === 1)
@@ -129,15 +122,16 @@ class LpuDataAccessor {
    * Replaces document that is not marked as deleted.
    *
    * @param {Collection.Lpu["uid"]} uid Document's unique identifier.
-   * @param {Collection.OmitBase<Collection.Lpu>} doc Replacement data.
-   * @returns {Promise<boolean>} `true` if matching document is modified, `false` otherwise.
+   * @param {Collection.OmitBase<Collection.Lpu>} doc Replacement lpu document.
+   * @returns {Promise<boolean>} `true` if matching document was modified, `false` otherwise.
    */
   replace(uid, doc) {
-    const queryByUID = uidQueryDecorator(uid)
+    const queryByUID = commonQueries.subdocQuery({ uid })
+    const queryExisted = commonQueries.deletedDocQuery(false)
 
     return this.collection
       .updateOne(
-        queryExisted(queryByUID({})),
+        queryByUID(queryExisted()),
         [
           {
             $replaceWith: {
@@ -160,6 +154,6 @@ class LpuDataAccessor {
  * @returns {LpuDataAccessor} Lpu collection data provider.
  */
 module.exports = db => new LpuDataAccessor(db, CollectionNameEnum.LPU)
-/** @type {typeof isDuplicateMongoError} */
+/** @type {typeof mongoutils.isDuplicateMongoError} */
 module.exports.isDuplicateError = (error, ...keys) =>
-  isDuplicateMongoError(error, ...keys)
+  mongoutils.isDuplicateMongoError(error, ...keys)

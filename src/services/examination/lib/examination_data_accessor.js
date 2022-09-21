@@ -47,7 +47,7 @@ class ExaminationDataAccessor {
   /**
    * Inserts new document or replaces existing document that is marked as deleted.
    *
-   * @param {Collection.OmitBase<ExaminationDocument, "cuser" | "muser">} doc New document to insert in the database.
+   * @param {Collection.OmitBase<ExaminationDocument, "cuser" | "muser">} doc New document added to the collection.
    * @param {UpdateOptions} options Insert options.
    * @returns {Promise<boolean>} `true` if new document was added to the database, `false` otherwise.
    */
@@ -87,7 +87,7 @@ class ExaminationDataAccessor {
    *
    * @param {ExaminationIdIndex} doc Unique composite index on the collection.
    * @param {UpdateOptions} options Delete options.
-   * @returns {Promise<boolean>} `true` if matching document is modified, `false` otherwise.
+   * @returns {Promise<boolean>} `true` if matching document was modified, `false` otherwise.
    */
   remove(doc, options) {
     /** @type {{ muser?: ExaminationDocument["muser"] }} */
@@ -150,7 +150,7 @@ class ExaminationDataAccessor {
    *
    * @param {Collection.OmitBase<ExaminationDocument, "cuser" | "muser">} doc Replacement examination document.
    * @param {UpdateOptions} options Update options.
-   * @returns {Promise<boolean>} `true` if matching document is modified, `false` otherwise.
+   * @returns {Promise<boolean>} `true` if matching document was modified, `false` otherwise.
    */
   replace(doc, options) {
     const { type, accounted, number, ...data } = doc

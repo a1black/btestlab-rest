@@ -12,7 +12,7 @@
 const crypto = require('crypto')
 
 const { CollectionNameEnum } = require('../../../globals')
-const { generateIdDecorator } = require('../../../libs/mongodb_helpers')
+const { generateIdDecorator } = require('../../../libs/mongo/utils')
 
 /**
  * @param {GeneratorOptions} options Generator options.
@@ -40,7 +40,7 @@ class EmployeeDataAccessor {
   }
 
   /**
-   * @param {Collection.Employee} doc Insert document.
+   * @param {Collection.Employee} doc New document added to the collection.
    * @returns {Promise<EmployeeIdType>} Primary key.
    */
   create(doc) {
@@ -115,7 +115,7 @@ class EmployeeDataAccessor {
   }
 
   /**
-   * @param {Collection.InferIdType<Collection.Employee>} id Primary key.
+   * @param {EmployeeIdType} id Primary key.
    * @param {Collection.Employee["password"]} password Password hash string.
    * @returns {Promise<boolean>} `true` if document was modified, `false` otherwise.
    */

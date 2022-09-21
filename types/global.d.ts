@@ -123,7 +123,6 @@ declare global {
   interface User extends Collection.Employee {}
 
   namespace Collection {
-    type InferIdType<T> = mongodb.InferIdType<T>;
     type OmitBase<T extends BaseDocument, K extends keyof T = never> = Omit<
       mongodb.WithoutId<T>,
       keyof BaseDocument | "_id" | K

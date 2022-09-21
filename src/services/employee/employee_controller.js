@@ -26,7 +26,7 @@ function dataAccessor(req) {
 
 /**
  * @param {Request} req Client HTTP request.
- * @returns {number} Document identifier passed in URL.
+ * @returns {Collection.Employee["_id"]} Document identifier passed in URL.
  */
 function idparam(req) {
   // @ts-ignore
