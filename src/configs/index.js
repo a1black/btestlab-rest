@@ -1,18 +1,16 @@
 'use strict'
 
+/** @type {import("joi").Root & { regex: () => import("joi").AnySchema }} */
+const Joi = require('joi').extend(require('../libs/joi/regex_schema_extension'))
 const dotenv = require('dotenv')
 const fs = require('fs/promises')
 const path = require('path')
 const { Buffer } = require('buffer')
 
-const {
-  blankStringSchema,
-  extendJoiWithRegexSchema
-} = require('../libs/joi_schema_helpers')
+const joiutils = require('../libs/joi/utils')
 
-const Joi = extendJoiWithRegexSchema()
 const JoiInteger = () => Joi.number().integer().positive()
-const JoiString = () => Joi.string().empty(blankStringSchema())
+const JoiString = () => Joi.string().empty(joiutils.blankStringSchema())
 
 /**
  * @param {string} name Name of configuration section.

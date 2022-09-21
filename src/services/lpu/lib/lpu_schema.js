@@ -11,29 +11,14 @@
 
 const Joi = require('joi')
 
-const {
-  baseValidationOptions,
-  blankStringSchema,
-  collapseSpacesCustomRule
-} = require('../../../libs/joi_schema_helpers')
-
-/**
- * @param {{ maxLength: number }} options Validation options.
- * @returns {Joi.StringSchema} Schema to validate lpu name components.
- */
-function lpuNameSchema(options) {
-  return Joi.string()
-    .empty(blankStringSchema())
-    .trim()
-    .custom(collapseSpacesCustomRule)
-    .max(options.maxLength)
-}
+const customRules = require('../../../libs/joi/custom_rules')
+const joiutils = require('../../../libs/joi/utils')
 
 /**
  * @param {LpuSchemaOptions} options Validation options.
- * @returns {Joi.ObjectSchema} Schema to validate input document.
+ * @returns {Joi.ObjectSchema} Schema to validate lpu document.
  */
-function lpuSchema(options) {
+function lpuInfoSchema(options) {
   return Joi.object({
     abbr: lpuNameSchema(options.abbr).required(),
     opf: lpuNameSchema(options.opf)
@@ -41,17 +26,36 @@ function lpuSchema(options) {
       .pattern(options.opf.pattern)
       .required()
   })
-    .required()
-    .prefs(baseValidationOptions())
+}
+
+/**
+ * @param {{ maxLength: number }} options Validation options.
+ * @returns {Joi.StringSchema} Schema to validate lpu name.
+ */
+function lpuNameSchema(options) {
+  return Joi.string()
+    .empty(joiutils.blankStringSchema())
+    .trim()
+    .custom(customRules.collapseSpaces)
+    .max(options.maxLength)
+}
+
+/**
+ * @returns {Joi.BooleanSchema} Schema to validate state value.
+ */
+function lpuStateSchema() {
+  return Joi.boolean().falsy(0).truthy(1).required()
 }
 
 module.exports = {
-  lpuDoc: lpuSchema,
-  /** @type {() => Joi.ObjectSchema} Schema to validate state input document. */
+  /** @type {(options: LpuSchemaOptions) => Joi.ObjectSchema} Returns schema to validate lpu input document. */
+  lpuDoc: options =>
+    lpuInfoSchema(options).required().prefs(joiutils.baseValidationOptions()),
+  /** @type {() => Joi.ObjectSchema} Returns schema for validating input to update lpu state. */
   stateDoc: () =>
-    Joi.object({ state: Joi.boolean().falsy(0).truthy(1).required() })
+    Joi.object({ state: lpuStateSchema() })
       .required()
-      .prefs(baseValidationOptions()),
-  /** @type {() => Joi.StringSchema} Schema to validate lpu's unique identifier. */
-  uid: () => Joi.string().lowercase().required().prefs({ convert: true })
+      .prefs(joiutils.baseValidationOptions()),
+  /** @type {() => Joi.StringSchema} Returns schema to validate lpu's unique identifier. */
+  uidParam: () => Joi.string().lowercase().required().prefs({ convert: true })
 }

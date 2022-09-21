@@ -11,10 +11,7 @@
 
 const Joi = require('joi')
 
-const {
-  baseValidationOptions,
-  blankStringSchema
-} = require('../../../libs/joi_schema_helpers')
+const joiuitils = require('../../../libs/joi/utils')
 
 /**
  * @param {LoginPasswordSchemaOptions} options Validation options.
@@ -24,14 +21,14 @@ function loginPasswordSchema(options) {
   return Joi.object({
     login: Joi.number().integer().positive().required(),
     password: Joi.string()
-      .empty(blankStringSchema())
+      .empty(joiuitils.blankStringSchema())
       .normalize()
       .max(options.password.maxLength)
       .min(options.password.minLength)
       .required()
   })
     .required()
-    .prefs(baseValidationOptions())
+    .prefs(joiuitils.baseValidationOptions())
 }
 
 module.exports = {

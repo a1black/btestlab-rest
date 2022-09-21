@@ -67,6 +67,7 @@ function examinationTypeSchema() {
 
 /**
  * Returns schema to validate input date and discard time component.
+ *
  * @param {ExaminationSchemaOptions["date"]} [options] Validation options.
  */
 function midnightDateSchema(options) {
@@ -100,13 +101,13 @@ function uuidSchema() {
 }
 
 module.exports = {
-  /**
-   * @returns {import("joi").DateSchema} schema to validate string containing examination partition key.
-   */
+  /** @type {() => import("joi").DateSchema} Returns schema to validate string containing examination partition key. */
   accountedParam: () =>
     // @ts-ignore
     Joi.date().format('yyyymm').required().prefs({ convert: true }),
   /**
+   * Returns schema to validate examination input document.
+   *
    * @param {(options?: ExaminationSchemaOptions) => import("joi").ObjectSchema} testResultSchema Factory method that produces schema to validate test result.
    * @param {ExaminationSchemaOptions} options Validation options.
    */

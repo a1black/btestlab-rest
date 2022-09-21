@@ -20,7 +20,7 @@ module.exports = config =>
   express
     .Router()
     .param('uid', (req, res, next, uid) => {
-      const { error, value } = lpuSchema.uid().validate(uid)
+      const { error, value } = lpuSchema.uidParam().validate(uid)
       req.params.uid = value
       next(error ? createHttpError(404) : undefined)
     })

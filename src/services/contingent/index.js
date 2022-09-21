@@ -14,7 +14,7 @@ module.exports = config =>
   express
     .Router()
     .param('id', (req, res, next, id) => {
-      const { error, value } = contingentSchema.code().validate(id)
+      const { error, value } = contingentSchema.codeParam().validate(id)
       req.params.id = value
       next(error ? createHttpError(404) : undefined)
     })

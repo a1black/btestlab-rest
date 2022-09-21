@@ -15,83 +15,89 @@
 
 const Joi = require('joi')
 
+const customRules = require('../../../libs/joi/custom_rules')
+const joiutils = require('../../../libs/joi/utils')
 const { SexEnum } = require('../../../globals')
-const {
-  baseValidationOptions,
-  blankStringSchema,
-  collapseSpacesCustomRule,
-  unsetTimeInDateCustomRule
-} = require('../../../libs/joi_schema_helpers')
+
+const JoiString = () => Joi.string().empty(joiutils.blankStringSchema()).trim()
+
+/**
+ * @returns {Joi.NumberSchema} Schema to validate employee ID.
+ */
+function employeeIdSchema() {
+  return Joi.number().integer().positive()
+}
+
+/**
+ * @param {EmployeeSchemaOptions} options Validation options.
+ * @returns {Joi.ObjectSchema} Schema to validate employee personal information.
+ */
+function employeeInfoSchema(options) {
+  return Joi.object({
+    admin: Joi.any().strip().optional(),
+    birthdate: Joi.date()
+      .empty(joiutils.blankStringSchema())
+      .iso()
+      .custom(customRules.midnight)
+      .max('now')
+      .min(options.birthdate.min)
+      .required(),
+    firstname: employeeNameSchema(options.name).required(),
+    lastname: employeeNameSchema(options.name).required(),
+    middlename: employeeNameSchema(options.name).required(),
+    sex: JoiString()
+      .valid(...SexEnum)
+      .required()
+  })
+}
 
 /**
  * @param {EmployeeSchemaOptions["name"]} options Validation options.
  * @returns {Joi.StringSchema} Schema to validate employee's name.
  */
 function employeeNameSchema(options) {
-  return Joi.string()
-    .empty(blankStringSchema())
+  return JoiString()
     .normalize()
-    .trim()
-    .lowercase()
-    .custom(collapseSpacesCustomRule)
+    .custom(customRules.collapseSpaces)
     .max(options.maxLength)
+    .lowercase()
     .pattern(options.pattern)
 }
 
 /**
  * @param {EmployeeSchemaOptions["password"]} options Validation options.
- * @returns {Joi.StringSchema} Schema to validate raw password value.
+ * @returns {Joi.StringSchema} Schema to validate raw password.
  */
 function employeePasswordSchema(options) {
   return Joi.string()
-    .empty(blankStringSchema())
+    .empty(joiutils.blankStringSchema())
     .normalize()
     .min(options.minLength)
     .max(options.maxLength)
     .pattern(options.pattern)
 }
 
-/**
- * @param {EmployeeSchemaOptions} options Validation options.
- * @returns {Joi.ObjectSchema} Schema to validate employee document excluding password field.
- */
-function employeeSchema(options) {
-  return Joi.object({
-    admin: Joi.any().strip().optional(),
-    birthdate: Joi.date()
-      .empty(blankStringSchema())
-      .iso()
-      .custom(unsetTimeInDateCustomRule)
-      .max('now')
-      .min(new Date(options.birthdate.min))
-      .required(),
-    firstname: employeeNameSchema(options.name).required(),
-    lastname: employeeNameSchema(options.name).required(),
-    middlename: employeeNameSchema(options.name).required(),
-    sex: Joi.string()
-      .empty(blankStringSchema())
-      .valid(...SexEnum)
-      .required()
-  })
-    .required()
-    .prefs(baseValidationOptions())
-}
-
 module.exports = {
-  /** @type {(options: EmployeeSchemaOptions) => Joi.ObjectSchema} Schema to validate input to create new employee document. */
+  /** @type {(options: EmployeeSchemaOptions) => Joi.ObjectSchema} Returns schema to validate input document. */
   employeeDoc: options =>
-    employeeSchema(options).append({
-      password: employeePasswordSchema(options.password).optional()
-    }),
-  /** @type {() => Joi.NumberSchema} Schema to validate value of primary key. */
-  id: () =>
-    Joi.number().integer().positive().required().prefs({ convert: true }),
-  /** @type {(options: EmployeeSchemaOptions) => Joi.ObjectSchema} Schema to validate password update document. */
+    employeeInfoSchema(options)
+      .append({
+        password: employeePasswordSchema(options.password).optional()
+      })
+      .required()
+      .prefs(joiutils.baseValidationOptions()),
+  /** @type {() => Joi.NumberSchema} Returns schema to validate employee identifier. */
+  idParam: () => employeeIdSchema().required().prefs({ convert: true }),
+  /** @type {(options: EmployeeSchemaOptions) => Joi.ObjectSchema} Retruns schema to validate password update. */
   passwordDoc: options =>
     Joi.object({
       password: employeePasswordSchema(options.password).required()
     })
       .required()
-      .prefs(baseValidationOptions()),
-  updateDoc: employeeSchema
+      .prefs(joiutils.baseValidationOptions()),
+  /** @type {(options: EmployeeSchemaOptions) => Joi.ObjectSchema} Returns schema for validating input to update employee document. */
+  updateDoc: options =>
+    employeeInfoSchema(options)
+      .required()
+      .prefs(joiutils.baseValidationOptions())
 }

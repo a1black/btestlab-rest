@@ -57,7 +57,7 @@ function randomString(options) {
  */
 async function validContingent(id) {
   const options = (await config()).input.contingent
-  const code = id ?? crypto.randomInt(1000).toString()
+  const code = id ?? crypto.randomInt(100, 1000).toString()
   const { error, value } = contingentSchema.contingentDoc(options).validate({
     code,
     desc: randomString({ locale: 'ru', size: 32 })

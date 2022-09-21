@@ -20,7 +20,7 @@ module.exports = config => {
   return express
     .Router()
     .param('id', (req, res, next, id) => {
-      const { error, value } = employeeSchema.id().validate(id)
+      const { error, value } = employeeSchema.idParam().validate(id)
 
       req.params.id = value
       next(error ? createHttpError(404) : undefined)
