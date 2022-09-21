@@ -1,0 +1,64 @@
+name: 'btestlab_rest_test'
+services:
+  mongodb:
+    container_name: btestlab_rest_test_backend_mongodb
+    image: mongo:5-focal
+    command: --bind_ip 0.0.0.0 --port 27017 --dbpath /data/db
+    environment:
+      MONGO_INITDB_DATABASE: test_exam_journal
+
+    expose:
+      - 27017
+    networks:
+      btestlab_rest_test_network:
+        aliases:
+          - mongodb.local
+        ipv4_address: 172.129.0.2
+    stop_grace_period: 1m
+
+    volumes:
+      - type: bind
+        source: ../init
+        target: /docker-entrypoint-initdb.d
+
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh 0.0.0.0:27017/test --quiet
+      start_period: 60s
+      interval: 10s
+      retries: 3
+      timeout: 3s
+
+  test:
+    container_name: backend_rest_test_jest
+    image: node:lts-alpine
+    command:
+      ['npm', 'run', 'test', '--', '--json', '--noStackTrace', '--silent']
+    environment:
+      MONGODB_DB: test_exam_journal
+      MONGODB_URI: mongodb://mongodb.local:27017
+
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    init: true
+    networks:
+      btestlab_rest_test_network:
+        ipv4_address: 172.129.0.3
+    profiles:
+      - test
+    working_dir: /app
+    user: root
+
+    volumes:
+      - type: bind
+        source: ../
+        target: /app
+
+networks:
+  btestlab_rest_test_network:
+    attachable: true
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.129.0.0/24
+          gateway: 172.129.0.1
