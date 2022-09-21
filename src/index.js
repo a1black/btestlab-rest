@@ -17,7 +17,6 @@ const {
   dbErrorHandler,
   jsonErrorRequestHandler
 } = require('./libs/error_handlers')
-const { httpResponseAliases } = require('./libs/http_service_helpers')
 
 /**
  * @returns {Promise<[Application, () => Server, () => Promise<void>]>} Express application instance, startup and teardown functions.
@@ -50,7 +49,7 @@ async function application() {
       req.logger = logger
       req.isInternal = () => req.get('X-Internal-Addr') === '1'
       // Extend HTTP Response object
-      httpResponseAliases(res)
+      res.sendOk = ok => res.json({ ok: ok !== false })
 
       next()
     })

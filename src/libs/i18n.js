@@ -5,9 +5,9 @@ const fs = require('fs/promises')
 const path = require('path')
 
 /**
- * Loads translations into the memory.
+ * Loads translation files into memory.
  *
- * @param {{ defaultLocale: string }} options Initialization options.
+ * @param {{ defaultLocale: string }} options Initialization parameters.
  */
 async function i18n(options) {
   const { defaultLocale } = options
@@ -24,24 +24,26 @@ async function i18n(options) {
     )
   }
 
-  /** @param {string} [locale] Locale code. */
+  /**
+   * Sets locale for all future instances of internalization class.
+   *
+   * @param {string} [locale] Locale code.
+   * @returns {(options?: Polyglot.PolyglotOptions) => Polyglot} Factory method to produce internalization object.
+   */
   return locale => {
-    const localeCode =
-      locale && locale.length >= 2
-        ? locale.slice(0, 2).toLowerCase()
-        : defaultLocale
+    const localeCode = locale
+      ? locale.trim().slice(0, 2).toLowerCase()
+      : defaultLocale
+    const translations = Object.hasOwn(locales, localeCode)
+      ? locales[localeCode]
+      : Object.hasOwn(locales, defaultLocale)
+      ? locales[defaultLocale]
+      : {}
 
-    /** @param {Polyglot.PolyglotOptions} [options] Initialization parameters. */
-    return options =>
-      translatorProvider(
-        localeCode,
-        Object.hasOwn(locales, localeCode)
-          ? locales[localeCode]
-          : Object.hasOwn(locales, defaultLocale)
-          ? locales[defaultLocale]
-          : {},
-        options
-      )
+    /**
+     * @param {Polyglot.PolyglotOptions} [options] Initialization parameters for internalization object.
+     */
+    return options => translatorProvider(localeCode, translations, options)
   }
 }
 

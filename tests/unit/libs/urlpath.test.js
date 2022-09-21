@@ -43,14 +43,15 @@ describe('query argument', () => {
   })
 })
 
-test.each(['//relative/url//path/test//', ['', '', 'relative', 'url', '', '', 'path', 'test', '']])(
-  'exessive path separation, expect clean path',
-  test => {
-    const expected = '/relative/url/path/test'
+test.each([
+  '//relative/url//path/test//',
+  ['', '', 'relative', 'url', '', '', 'path', 'test', ''],
+  ['//relative/url/', '', 'path//test//']
+])('exessive path separation, expect clean path', test => {
+  const expected = '/relative/url/path/test'
 
-    expect(urlpath(test)).toBe(expected)
-  }
-)
+  expect(urlpath(test)).toBe(expected)
+})
 
 test('primitive types test, expect relative URL', () => {
   expect(urlpath(['root', 'path'], { a: [0, 1, 2], n: 0, s: 'value' })).toBe('/root/path?a=0&a=1&a=2&n=0&s=value')

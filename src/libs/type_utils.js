@@ -9,6 +9,7 @@ function isNone(value) {
     value === null ||
     value === undefined ||
     value === false ||
+    (typeof value === 'number' && isNaN(value)) ||
     (typeof value === 'string' && /^\s*$/.test(value)) ||
     (Array.isArray(value) && !value.length) ||
     (isObject(value) && !Object.keys(value).length) ||

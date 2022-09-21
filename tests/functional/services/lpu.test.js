@@ -67,6 +67,14 @@ describe('access control', () => {
     expect(response.status).toBe(401)
   })
 
+  test('unauthenticated delete, expect 401', async () => {
+    const url = await lpuPath('lpu')
+    const [request] = await requestProvider()
+
+    const response = await request.delete(url).send()
+    expect(response.status).toBe(401)
+  })
+
   test('unauthenticated read, expect 401', async () => {
     const url = await lpuPath('lpu')
     const [request] = await requestProvider()
@@ -178,12 +186,17 @@ describe('lpu.delete', () => {
     await clearCollection(CollectionNameEnum.LPU)
   })
 
-  test('delete non-existing document, expect 404', async () => {
+  test('delete document, expect 404', async () => {
     const auth = await generateAccessToken()
     const [request] = await requestProvider()
 
     const { url } = await createLpuFixture(request)
-    await deleteLpuFixture(request, url.delete)
+
+    const deleteResponse = await request
+      .delete(url.delete)
+      .auth(...auth)
+      .send()
+    expect(deleteResponse.status).toBe(200)
 
     const notfoundResponse = await request
       .delete(url.delete)

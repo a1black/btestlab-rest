@@ -4,32 +4,35 @@
  * @typedef {supertest.SuperTest<supertest.Test>} SuperTestRequest
  */
 
-const path = require('path')
 const supertest = require('supertest')
 
+const generateJwt = require('../../src/libs/accesstoken')
 const initApplication = require('../../src')
 const initConfiguration = require('../../src/configs')
-const { generateUserJwt } = require('../../src/libs/access_control_helpers')
 
 /**
- * @param {boolean | { admin?: boolean , id?: any }} [options] Grand admin privileges.
+ * @param {Partial<User & { id: any }>} [user] Authenticated user data.
  * @returns {Promise<[string, { type: "bearer" }]>} Request authentication options.
  */
-async function generateAccessToken(options) {
-  const { admin = false, id = undefined } =
-    typeof options === 'boolean' ? { admin: options } : options ?? {}
+async function generateAccessToken(user) {
+  const { id, _id, admin = false, ...rest } = user ?? {}
   const config = await initConfiguration()
 
-  const token = await generateUserJwt(
-    {
-      _id: id,
-      admin: admin === true,
-      birthdate: new Date(),
-      firstname: 'testuser',
-      lastname: 'testuser',
-      middlename: 'testuser',
-      sex: 'm'
-    },
+  const token = await generateJwt(
+    Object.assign(
+      {
+        birthdate: new Date(),
+        firstname: 'testuser',
+        lastname: 'testuser',
+        middlename: 'testuser',
+        sex: 'm'
+      },
+      {
+        _id: _id ?? id,
+        admin: admin === true,
+        ...rest
+      }
+    ),
     { ...config.accessToken, expiresIn: 86400 }
   )
 
@@ -59,13 +62,29 @@ function requestFactory() {
   }
 }
 
-/** @type {(...parts: any[]) => string} */
-function pathjoin(...parts) {
-  return path.join(...parts.map(v => v.toString()))
+/**
+ * @param {keyof ApplicationConfiguration["routes"]} service
+ */
+function servicePathProvider(service) {
+  let /** @type {string} */ path
+
+  return async () => {
+    if (service && !path) {
+      const config = await initConfiguration()
+      path = config.routes[service]
+    }
+    if (!path) {
+      // @ts-ignore
+      service = undefined
+      throw new Error('Unknown service path')
+    }
+
+    return path
+  }
 }
 
 module.exports = {
   generateAccessToken,
   requestFactory,
-  pathjoin
+  servicePathProvider
 }

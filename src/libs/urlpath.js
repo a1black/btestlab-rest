@@ -51,7 +51,7 @@ function urlpath(path, query) {
       throw new TypeError('The "path" argument must be of type string.')
     }
 
-    path = path.filter(isAllowed).join('/')
+    path = path.join('/')
   } else if (!isAllowed(path)) {
     throw new TypeError('The "path" argument must be of type string.')
   } else {
