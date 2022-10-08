@@ -1,12 +1,13 @@
-# Generate .env file
-FROM alpine:latest AS env_build
+# Generate access token secret
+FROM alpine:latest AS secret_build
 WORKDIR /build
 COPY private/ .
-RUN [ ! -f jwt_secret.key ] \
-    && apk update -q \
-    && apk add -q openssl > /dev/null \
-    && openssl rand -base64 -out jwt_secret.key 32
-RUN cat <(echo -en "LOG_LEVEL=error\nSERVER_PORT=8080\nJWT_SECRET=") jwt_secret.key > dotenv
+RUN if [ ! -f jwt_secret.key ] \
+    ;then \
+        apk update -q \
+            && apk add -q openssl > /dev/null \
+            && openssl rand 32 | openssl enc -A -base64 -out jwt_secret.key \
+    ;fi
 
 # End resul image
 FROM node:lts-alpine
@@ -18,12 +19,13 @@ LABEL maintainer="Aleksey Chernyaev <a.chernyaev.work@gmail.com>"
 ENV NODE_ENV=production
 WORKDIR /home/node/app
 
-COPY --from=env_build /build/dotenv .env
+COPY --from=secret_builld /build/jwt_secret private/
 COPY bin/ bin/
 COPY package*.json .
 RUN npm install -g npm@latest &> /dev/null \
     && npm install --production --no-audit --no-fund --silent &> /dev/null
 COPY src/ src/
+RUN echo -en "LOG_LEVEL=error\nSERVER_PORT=8080\n" .env
 
 EXPOSE 8080/tcp
 

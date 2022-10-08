@@ -51,8 +51,8 @@ function mergeConfigSection(name, schema, base, ...configs) {
  */
 function readJwtKey() {
   return fs
-    .readFile(path.resolve(__dirname, '..', '..', 'private', 'JWT_SECRET.key'))
-    .then(data => data.toString('utf8'))
+    .readFile(path.resolve(__dirname, '..', '..', 'private', 'jwt_secret.key'))
+    .then(data => data.toString('utf8').trimEnd())
     .catch(() => null)
 }
 
