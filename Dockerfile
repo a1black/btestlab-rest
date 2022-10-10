@@ -19,7 +19,7 @@ LABEL maintainer="Aleksey Chernyaev <a.chernyaev.work@gmail.com>"
 ENV NODE_ENV=production
 WORKDIR /home/node/app
 
-COPY --from=secret_builld /build/jwt_secret private/
+COPY --from=secret_build /build/jwt_secret.key private/
 COPY bin/ bin/
 COPY package*.json .
 RUN npm install -g npm@latest &> /dev/null \

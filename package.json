@@ -24,6 +24,7 @@
   ],
   "types": "types",
   "scripts": {
+    "adduser": "node bin/adduser.js",
     "dev": "NODE_ENV=development nodemon --exec npx node -- --inspect=0.0.0.0 bin/index.js | pino-pretty -c -t",
     "lint": "eslint src --ignore-path .gitignore",
     "pretty": "prettier --check --ignore-path .gitignore src",
